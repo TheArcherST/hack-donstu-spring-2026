@@ -1,0 +1,14 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+backend/.venv/
+frontend/node_modules/
+frontend/dist/
+assets/DDoS-Guard - руководство по фирменному стилю/DDoS-Guard - руководство по фирменному стилю.txt

@@ -61,12 +61,16 @@ export function GameScreen({ sessionId, soundEnabled, onToggleSound, onCompleted
         return;
       }
       if (event.key === "ArrowLeft" || event.key.toLowerCase() === "a") {
+        event.preventDefault();
         controlsRef.current.moveLeft();
       } else if (event.key === "ArrowRight" || event.key.toLowerCase() === "d") {
+        event.preventDefault();
         controlsRef.current.moveRight();
       } else if (event.key === "ArrowUp" || event.key.toLowerCase() === "w") {
+        event.preventDefault();
         controlsRef.current.rotate();
       } else if (event.key === "ArrowDown" || event.key.toLowerCase() === "s") {
+        event.preventDefault();
         controlsRef.current.softDrop();
       } else if (event.key === " ") {
         event.preventDefault();
@@ -95,7 +99,9 @@ export function GameScreen({ sessionId, soundEnabled, onToggleSound, onCompleted
     renderSnapshot(context, snapshot);
   }, [snapshot]);
 
-  function handlePointerDown(event: PointerEvent<HTMLCanvasElement>) {
+  function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
+    event.preventDefault();
+    event.currentTarget.setPointerCapture?.(event.pointerId);
     audioRef.current.resume();
     gestureRef.current = {
       x: event.clientX,
@@ -104,7 +110,13 @@ export function GameScreen({ sessionId, soundEnabled, onToggleSound, onCompleted
     };
   }
 
-  function handlePointerUp(event: PointerEvent<HTMLCanvasElement>) {
+  function handlePointerMove(event: PointerEvent<HTMLDivElement>) {
+    event.preventDefault();
+  }
+
+  function handlePointerUp(event: PointerEvent<HTMLDivElement>) {
+    event.preventDefault();
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
     const start = gestureRef.current;
     const controls = controlsRef.current;
     if (!start || !controls) {
@@ -137,6 +149,12 @@ export function GameScreen({ sessionId, soundEnabled, onToggleSound, onCompleted
     }
   }
 
+  function handlePointerCancel(event: PointerEvent<HTMLDivElement>) {
+    event.preventDefault();
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+    gestureRef.current = null;
+  }
+
   if (!snapshot) {
     return (
       <section className="panel game-panel">
@@ -147,44 +165,38 @@ export function GameScreen({ sessionId, soundEnabled, onToggleSound, onCompleted
 
   return (
     <section className="panel game-panel">
-      <header className="hud">
-        <div className="hud-card">
-          <span>Таймер</span>
-          <strong>{formatSeconds(snapshot.timeLeftSeconds)}</strong>
-        </div>
-        <div className="hud-card">
-          <span>Очки</span>
-          <strong>{snapshot.score}</strong>
-        </div>
-        <div className="hud-card hud-protection">
-          <span>Защита канала</span>
-          <strong>{snapshot.protectionLevel}%</strong>
-          <div className="progress-bar">
-            <i style={{ width: `${snapshot.protectionLevel}%` }} />
-          </div>
-        </div>
-        <button type="button" className="sound-toggle" onClick={onToggleSound}>
-          {soundEnabled ? "Звук: вкл" : "Звук: выкл"}
-        </button>
-      </header>
-
-      <canvas
-        ref={canvasRef}
-        className="game-canvas"
-        width={400}
-        height={760}
+      <div
+        className="game-stage"
         onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-      />
+        onPointerCancel={handlePointerCancel}
+        onContextMenu={(event) => event.preventDefault()}
+      >
+        <canvas ref={canvasRef} className="game-canvas" width={400} height={760} />
 
-      <footer className="hud-footer">
-        <p>Свайп влево/вправо: сдвиг. Тап: поворот. Свайп вниз: ускорение. Длинный свайп вниз: сброс.</p>
-        <div className="hud-meta">
-          <span>Интенсивность атаки: {snapshot.attackIntensity}%</span>
-          <span>Защищённых сегментов: {snapshot.preservedSegments}</span>
-          <span>Разрушено: {snapshot.destroyedSegments}</span>
-        </div>
-      </footer>
+        <header className="game-overlay game-overlay-top hud-bar">
+          <div className="hud-bar-metric">
+            <span>Время</span>
+            <strong>{formatSeconds(snapshot.timeLeftSeconds)}</strong>
+          </div>
+          <div className="hud-bar-divider" />
+          <div className="hud-bar-metric">
+            <span>Стабильно</span>
+            <strong>
+              {snapshot.stableHoldSeconds}/{snapshot.stableTargetSeconds}с
+            </strong>
+          </div>
+          <div className="hud-bar-divider" />
+          <div className="hud-bar-metric">
+            <span>Счёт</span>
+            <strong>{snapshot.score}</strong>
+          </div>
+          <button type="button" className="sound-toggle sound-toggle-bar" onClick={onToggleSound}>
+            {soundEnabled ? "🔊" : "🔈"}
+          </button>
+        </header>
+      </div>
 
       {saving ? <div className="overlay-banner">Сохраняем результат...</div> : null}
       {error ? <div className="overlay-banner overlay-error">{error}</div> : null}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { ContactForm } from "../components/ContactForm";
 import { GameScreen } from "../components/GameScreen";
@@ -32,10 +32,20 @@ export function GameExperience({
     setResult(null);
   }
 
+  useEffect(() => {
+    document.body.classList.toggle("game-active", screen === "game");
+    if (screen === "game") {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    }
+    return () => {
+      document.body.classList.remove("game-active");
+    };
+  }, [screen]);
+
   return (
-    <main className="app-shell">
+    <main className={`app-shell screen-${screen}`}>
       <div className="app-backdrop" />
-      <div className="app-content">
+      <div className={`app-content screen-${screen}`}>
         {screen === "form" ? (
           <div className="experience-grid">
             <ContactForm

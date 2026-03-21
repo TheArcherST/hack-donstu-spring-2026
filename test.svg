@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1700" viewBox="0 0 2400 1700">
+  <defs>
+    <!-- Base palette from the original -->
+    <style>
+      .outer { fill:#005986; }
+      .innerBorder { fill:#014370; }
+      .gold { fill:#D7B248; }
+      .bolt { fill:#786423; }
+      .deck { fill:#000024; }
+      .deckTop { fill:#261F00; }
+      .cap { fill:#014370; }
+    </style>
+
+    <!-- Repeating inner texture adapted from the original -->
+    <pattern id="containerTexture" x="0" y="0" width="190" height="220" patternUnits="userSpaceOnUse">
+      <rect x="0" y="0" width="190" height="220" fill="#005986"/>
+      <rect x="4" y="0" width="63" height="220" fill="#004266"/>
+      <rect x="67" y="0" width="63" height="220" fill="#009FDD"/>
+      <rect x="41" y="0" width="51" height="220" fill="#0085B6"/>
+      <polygon points="91,0 128,22 190,22 190,0" fill="#014370" opacity="0.95"/>
+      <polygon points="0,220 0,198 58,198 95,220" fill="#014370" opacity="0.95"/>
+    </pattern>
+
+    <!-- Reusable framed container shell -->
+    <g id="frameShell">
+      <rect x="0" y="0" width="1000" height="700" class="outer" rx="10"/>
+      <rect x="0" y="40" width="1000" height="620" class="innerBorder"/>
+      <rect x="28" y="58" width="944" height="584" fill="url(#containerTexture)"/>
+
+      <!-- vertical side rails -->
+      <rect x="0" y="0" width="28" height="700" class="outer"/>
+      <rect x="0" y="0" width="10" height="700" fill="#009FDD"/>
+      <rect x="972" y="0" width="28" height="700" class="outer"/>
+      <rect x="992" y="0" width="8" height="700" class="gold"/>
+      <rect x="28" y="0" width="10" height="700" class="outer"/>
+      <rect x="962" y="0" width="10" height="700" class="outer"/>
+
+      <!-- corner bolts -->
+      <circle cx="54" cy="46" r="12" class="bolt"/>
+      <circle cx="946" cy="46" r="12" class="bolt"/>
+      <circle cx="54" cy="654" r="12" class="bolt"/>
+      <circle cx="946" cy="654" r="12" class="bolt"/>
+
+      <!-- bottom supports -->
+      <rect x="310" y="658" width="120" height="24" class="deck"/>
+      <rect x="310" y="658" width="120" height="12" class="deckTop"/>
+      <rect x="570" y="658" width="120" height="24" class="deck"/>
+      <rect x="570" y="658" width="120" height="12" class="deckTop"/>
+    </g>
+
+    <!-- Clip paths for shapes -->
+    <clipPath id="clipRect"><rect x="0" y="0" width="1000" height="700" rx="10"/></clipPath>
+    <clipPath id="clipSquare"><rect x="0" y="0" width="700" height="700" rx="10"/></clipPath>
+    <clipPath id="clipL"><path d="M0 0H850V250H600V700H0Z"/></clipPath>
+    <clipPath id="clipT"><path d="M0 0H1000V240H620V700H380V240H0Z"/></clipPath>
+  </defs>
+
+  <rect width="2400" height="1700" fill="#0b2740"/>
+
+  <!-- 1. Original rectangle -->
+  <g transform="translate(80 80)">
+    <g clip-path="url(#clipRect)">
+      <use href="#frameShell"/>
+    </g>
+    <text x="500" y="760" text-anchor="middle" fill="#d8ecff" font-family="Arial, sans-serif" font-size="44">Прямоугольник</text>
+  </g>
+
+  <!-- 2. Square -->
+  <g transform="translate(1240 80)">
+    <g clip-path="url(#clipSquare)">
+      <use href="#frameShell" transform="scale(0.7 1)"/>
+    </g>
+    <path d="M0 0H700V700H0Z" fill="none" stroke="#002b4b" stroke-width="0"/>
+    <text x="350" y="760" text-anchor="middle" fill="#d8ecff" font-family="Arial, sans-serif" font-size="44">Квадрат</text>
+  </g>
+
+  <!-- 3. L-shape -->
+  <g transform="translate(80 900)">
+    <g clip-path="url(#clipL)">
+      <use href="#frameShell" transform="scale(0.85 1)"/>
+    </g>
+    <text x="425" y="780" text-anchor="middle" fill="#d8ecff" font-family="Arial, sans-serif" font-size="44">L-форма</text>
+  </g>
+
+  <!-- 4. T-shape -->
+  <g transform="translate(1180 900)">
+    <g clip-path="url(#clipT)">
+      <use href="#frameShell"/>
+    </g>
+    <text x="500" y="780" text-anchor="middle" fill="#d8ecff" font-family="Arial, sans-serif" font-size="44">T-форма</text>
+  </g>
+</svg>

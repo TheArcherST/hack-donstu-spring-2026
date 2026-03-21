@@ -1,0 +1,224 @@
+{
+  "format": "pole_asset_pack_engine_v2",
+  "notes": [
+    "All pieces are centered to a shared pole axis for easier stacking in-engine.",
+    "Canvas width is standardized to 256 px.",
+    "Sprite sheet uses 256x256 cells.",
+    "Masks are binary alpha silhouettes for quick collision or hit detection setup."
+  ],
+  "shared_axis_x": 128,
+  "grid_cell": 256,
+  "assets": {
+    "top_exit": {
+      "source": "01_top_exit.png",
+      "file": "top_exit_aligned.png",
+      "mask": "top_exit_mask.png",
+      "size": [
+        256,
+        102
+      ],
+      "stack_axis_x": 128,
+      "recommended_attach_next_y": 102
+    },
+    "repeat_a": {
+      "source": "02_repeat_segment_a.png",
+      "file": "repeat_a_aligned.png",
+      "mask": "repeat_a_mask.png",
+      "size": [
+        256,
+        212
+      ],
+      "stack_axis_x": 128,
+      "recommended_attach_next_y": 212
+    },
+    "repeat_b": {
+      "source": "03_repeat_segment_b.png",
+      "file": "repeat_b_aligned.png",
+      "mask": "repeat_b_mask.png",
+      "size": [
+        256,
+        213
+      ],
+      "stack_axis_x": 128,
+      "recommended_attach_next_y": 213
+    },
+    "repeat_c": {
+      "source": "04_repeat_segment_c.png",
+      "file": "repeat_c_aligned.png",
+      "mask": "repeat_c_mask.png",
+      "size": [
+        256,
+        213
+      ],
+      "stack_axis_x": 128,
+      "recommended_attach_next_y": 213
+    },
+    "cable_bundle": {
+      "source": "05_cable_bundle.png",
+      "file": "cable_bundle_aligned.png",
+      "mask": "cable_bundle_mask.png",
+      "size": [
+        256,
+        298
+      ],
+      "stack_axis_x": 128,
+      "recommended_attach_next_y": 298
+    },
+    "control_box": {
+      "source": "06_control_box.png",
+      "file": "control_box_aligned.png",
+      "mask": "control_box_mask.png",
+      "size": [
+        256,
+        268
+      ],
+      "stack_axis_x": 128,
+      "recommended_attach_next_y": 268
+    },
+    "bottom_post": {
+      "source": "07_bottom_post.png",
+      "file": "bottom_post_aligned.png",
+      "mask": "bottom_post_mask.png",
+      "size": [
+        256,
+        216
+      ],
+      "stack_axis_x": 128,
+      "recommended_attach_next_y": 216
+    },
+    "repeat_tile": {
+      "source": "03_repeat_segment_b.png",
+      "file": "repeat_tile_256w.png",
+      "mask": "repeat_tile_256w_mask.png",
+      "size": [
+        256,
+        213
+      ],
+      "stack_axis_x": 128,
+      "usage": "Best default piece for infinite vertical repetition."
+    }
+  },
+  "atlas_256_cells": {
+    "top_exit": {
+      "cell": [
+        0,
+        0
+      ],
+      "cell_px": [
+        0,
+        0
+      ],
+      "note": "For exact full sprite sizes use individual PNGs; atlas cell stores bottom portion if sprite exceeds 256 px."
+    },
+    "repeat_a": {
+      "cell": [
+        1,
+        0
+      ],
+      "cell_px": [
+        256,
+        0
+      ],
+      "note": "For exact full sprite sizes use individual PNGs; atlas cell stores bottom portion if sprite exceeds 256 px."
+    },
+    "repeat_b": {
+      "cell": [
+        0,
+        1
+      ],
+      "cell_px": [
+        0,
+        256
+      ],
+      "note": "For exact full sprite sizes use individual PNGs; atlas cell stores bottom portion if sprite exceeds 256 px."
+    },
+    "repeat_c": {
+      "cell": [
+        1,
+        1
+      ],
+      "cell_px": [
+        256,
+        256
+      ],
+      "note": "For exact full sprite sizes use individual PNGs; atlas cell stores bottom portion if sprite exceeds 256 px."
+    },
+    "cable_bundle": {
+      "cell": [
+        0,
+        2
+      ],
+      "cell_px": [
+        0,
+        512
+      ],
+      "note": "For exact full sprite sizes use individual PNGs; atlas cell stores bottom portion if sprite exceeds 256 px."
+    },
+    "control_box": {
+      "cell": [
+        1,
+        2
+      ],
+      "cell_px": [
+        256,
+        512
+      ],
+      "note": "For exact full sprite sizes use individual PNGs; atlas cell stores bottom portion if sprite exceeds 256 px."
+    },
+    "bottom_post": {
+      "cell": [
+        0,
+        3
+      ],
+      "cell_px": [
+        0,
+        768
+      ],
+      "note": "For exact full sprite sizes use individual PNGs; atlas cell stores bottom portion if sprite exceeds 256 px."
+    }
+  },
+  "atlas_exact_stack": {
+    "top_exit": {
+      "x": 8,
+      "y": 8,
+      "w": 256,
+      "h": 102
+    },
+    "repeat_a": {
+      "x": 8,
+      "y": 118,
+      "w": 256,
+      "h": 212
+    },
+    "repeat_b": {
+      "x": 8,
+      "y": 338,
+      "w": 256,
+      "h": 213
+    },
+    "repeat_c": {
+      "x": 8,
+      "y": 559,
+      "w": 256,
+      "h": 213
+    },
+    "cable_bundle": {
+      "x": 8,
+      "y": 780,
+      "w": 256,
+      "h": 298
+    },
+    "control_box": {
+      "x": 8,
+      "y": 1086,
+      "w": 256,
+      "h": 268
+    },
+    "bottom_post": {
+      "x": 8,
+      "y": 1362,
+      "w": 256,
+      "h": 216
+    }
+  }
+}

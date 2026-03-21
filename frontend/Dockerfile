@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.7
 FROM node:20-alpine AS build
 
 WORKDIR /app
@@ -5,11 +6,13 @@ WORKDIR /app
 ARG VITE_API_BASE_URL=/api
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 
-COPY package.json tsconfig.json tsconfig.app.json tsconfig.node.json vite.config.ts index.html ./
+COPY package.json package-lock.json ./
+RUN --mount=type=cache,target=/root/.npm npm ci
+
+COPY tsconfig.json tsconfig.app.json tsconfig.node.json vite.config.ts index.html ./
 COPY public ./public
 COPY src ./src
 
-RUN npm install
 RUN npm run build
 
 FROM nginx:1.27-alpine

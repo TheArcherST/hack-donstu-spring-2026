@@ -42,7 +42,7 @@ export function ContactForm({ onCreated }: ContactFormProps) {
         <p className="eyebrow">DDoS-Guard Event Game</p>
         <h1>Линия защиты</h1>
         <p className="lead">
-          Сайт недоступен. Канал связи под атакой. Восстанови защищённое соединение и попади в рейтинг стенда.
+          Сайт недоступен. Наружный кабельный канал под атакой. Прикрой уязвимые уровни и попади в рейтинг стенда.
         </p>
       </div>
 

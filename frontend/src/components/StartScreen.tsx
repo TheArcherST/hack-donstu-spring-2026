@@ -14,16 +14,30 @@ export function StartScreen({ participant, leaderboard, onStart }: StartScreenPr
         <img className="brand-logo" src="/logo.svg" alt="DDoS-Guard" />
         <div className="panel-header">
           <p className="eyebrow">Игрок: {participant.first_name}</p>
-          <h2>Канал связи под атакой</h2>
+          <h2>Стабилизируй поток в столбе связи</h2>
           <p className="lead">
-            Пользователь не может открыть сайт. Проведи маршрут от сервера к пользователю и укрепи его синими
-            блоками DDoS-Guard.
+            Ты видишь не абстрактный статус, а сам трафик внутри линии. Чем чище и быстрее поднимаются световые пакеты,
+            тем ближе связь к восстановлению.
           </p>
         </div>
         <div className="mission-card">
-          <p>Сайт недоступен. Канал связи под атакой. Восстанови защищённое соединение.</p>
+          <p>Закрывай нижние уязвимые секции раньше верхних: слабый низ замедляет, тускнит и рвёт весь поток выше.</p>
+          <div className="signal-legend">
+            <article>
+              <strong>Чистый голубой поток</strong>
+              <span>Линия держится, пакеты доходят вверх.</span>
+            </article>
+            <article>
+              <strong>Редкий / тусклый поток</strong>
+              <span>Связь нестабильна, сегменты перегружены.</span>
+            </article>
+            <article>
+              <strong>Красные срывы</strong>
+              <span>Пакеты теряются, нижние зоны надо срочно закрыть.</span>
+            </article>
+          </div>
           <button type="button" className="primary-button" onClick={onStart}>
-            Начать защиту
+            Запустить линию
           </button>
         </div>
       </section>

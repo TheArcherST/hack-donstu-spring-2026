@@ -1,6 +1,7 @@
 export type BlockCategory = "normal" | "tech" | "guard" | "audit";
 export type ChannelState = "overloaded" | "partial" | "guarded";
 export type SoundCue = "lock" | "attack" | "break" | "audit" | "win" | "lose";
+export type SegmentState = "stable" | "unstable" | "critical";
 
 export interface Point {
   x: number;
@@ -8,7 +9,9 @@ export interface Point {
 }
 
 export interface Cell {
+  blockId: number;
   category: BlockCategory;
+  baseDurability: number;
   durability: number;
   maxDurability: number;
   fortified: number;
@@ -37,10 +40,34 @@ export interface AuditBurst {
   age: number;
 }
 
+export interface CableSegment {
+  row: number;
+  leftCovered: boolean;
+  rightCovered: boolean;
+  stress: number;
+  protection: number;
+  signalSpeed: number;
+  signalBrightness: number;
+  dropChance: number;
+  glitchChance: number;
+  state: SegmentState;
+}
+
+export interface SignalPacket {
+  id: number;
+  progress: number;
+  laneOffset: number;
+  brightness: number;
+  corrupted: number;
+  state: "travelling" | "dropping";
+  age: number;
+}
+
 export interface GameSnapshot {
   grid: Array<Array<Cell | null>>;
   activePiece: Piece | null;
   nextPiece: Piece;
+  cableSegments: CableSegment[];
   score: number;
   timeLeftSeconds: number;
   protectionLevel: number;
@@ -54,6 +81,15 @@ export interface GameSnapshot {
   channelState: ChannelState;
   attackPulses: AttackPulse[];
   auditBursts: AuditBurst[];
+  signalPackets: SignalPacket[];
+  linkQuality: number;
+  packetLoss: number;
+  throughput: number;
+  latencyMs: number;
+  deliveredPackets: number;
+  droppedPackets: number;
+  stableHoldSeconds: number;
+  stableTargetSeconds: number;
   showHints: boolean;
   elapsedSeconds: number;
 }

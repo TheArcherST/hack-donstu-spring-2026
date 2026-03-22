@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
-import { exportCsvUrl, fetchAdminEntries, togglePrizeIssued } from "../lib/api";
+import { downloadAdminCsv, fetchAdminEntries, togglePrizeIssued } from "../lib/api";
 import { formatDate } from "../lib/format";
 import type { AdminEntry } from "../types";
 
@@ -66,6 +66,10 @@ function buildAdminParams({
 
 export function AdminPage() {
   const [items, setItems] = useState<AdminEntry[]>([]);
+  const [passwordInput, setPasswordInput] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [authSubmitting, setAuthSubmitting] = useState(false);
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("score");
   const [sortDir, setSortDir] = useState("desc");
@@ -73,10 +77,17 @@ export function AdminPage() {
   const [windowValue, setWindowValue] = useState(DEFAULT_WINDOW_VALUE);
   const [windowUnit, setWindowUnit] = useState<TimeWindowUnit>("hours");
   const [allTime, setAllTime] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!adminPassword) {
+      setItems([]);
+      setLoading(false);
+      return;
+    }
+
     const params = buildAdminParams({
       search,
       sortBy,
@@ -88,14 +99,27 @@ export function AdminPage() {
     });
 
     setLoading(true);
-    fetchAdminEntries(params)
+    fetchAdminEntries(params, adminPassword)
       .then((response) => {
         setItems(response.items);
         setError(null);
+        setAuthError(null);
       })
-      .catch((requestError: Error) => setError(requestError.message))
-      .finally(() => setLoading(false));
-  }, [search, sortBy, sortDir, winnersOnly, windowValue, windowUnit, allTime]);
+      .catch((requestError: Error) => {
+        if (requestError.message.includes("пароль админки")) {
+          setAdminPassword("");
+          setItems([]);
+          setAuthError(requestError.message);
+          setError(null);
+          return;
+        }
+        setError(requestError.message);
+      })
+      .finally(() => {
+        setLoading(false);
+        setAuthSubmitting(false);
+      });
+  }, [adminPassword, search, sortBy, sortDir, winnersOnly, windowValue, windowUnit, allTime]);
 
   const adminParams = buildAdminParams({
     search,
@@ -109,17 +133,103 @@ export function AdminPage() {
   const safeWindowValue = normalizeWindowValue(windowValue);
   const windowCaption = allTime ? "за всё время" : `за последние ${safeWindowValue} ${WINDOW_UNIT_LABEL[windowUnit]}`;
 
+  function handleAuthSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const trimmedPassword = passwordInput.trim();
+    if (!trimmedPassword) {
+      setAuthError("Введите пароль админки.");
+      return;
+    }
+
+    setAuthSubmitting(true);
+    setAuthError(null);
+    setError(null);
+    setAdminPassword(trimmedPassword);
+  }
+
   async function handleTogglePrize(entry: AdminEntry) {
     try {
-      await togglePrizeIssued(entry.session_id, !entry.prize_issued);
+      await togglePrizeIssued(entry.session_id, !entry.prize_issued, adminPassword);
       setItems((current) =>
         current.map((item) =>
           item.session_id === entry.session_id ? { ...item, prize_issued: !item.prize_issued } : item,
         ),
       );
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Не удалось обновить статус приза.");
+      const message = requestError instanceof Error ? requestError.message : "Не удалось обновить статус приза.";
+      if (message.includes("пароль админки")) {
+        setAdminPassword("");
+        setItems([]);
+        setAuthError(message);
+        setError(null);
+        return;
+      }
+      setError(message);
     }
+  }
+
+  async function handleExportCsv() {
+    try {
+      setExporting(true);
+      await downloadAdminCsv(adminParams, adminPassword);
+      setError(null);
+    } catch (requestError) {
+      const message = requestError instanceof Error ? requestError.message : "Не удалось выгрузить CSV.";
+      if (message.includes("пароль админки")) {
+        setAdminPassword("");
+        setItems([]);
+        setAuthError(message);
+        setError(null);
+      } else {
+        setError(message);
+      }
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  function handleLogout() {
+    setAdminPassword("");
+    setPasswordInput("");
+    setItems([]);
+    setError(null);
+    setAuthError(null);
+  }
+
+  if (!adminPassword) {
+    return (
+      <main className="app-shell admin-shell">
+        <div className="app-backdrop" />
+        <div className="app-content">
+          <section className="panel admin-login-panel">
+            <div className="panel-header">
+              <p className="eyebrow">Admin Console</p>
+              <h1>Вход в админку</h1>
+              <p className="lead">Доступ к результатам и выдаче призов открыт только по паролю из `.env`.</p>
+            </div>
+
+            <form className="contact-form" onSubmit={handleAuthSubmit}>
+              <label>
+                <span>Пароль</span>
+                <input
+                  type="password"
+                  value={passwordInput}
+                  onChange={(event) => setPasswordInput(event.target.value)}
+                  placeholder="Введите пароль"
+                  autoComplete="current-password"
+                  aria-invalid={Boolean(authError)}
+                  className={authError ? "input-error" : undefined}
+                />
+              </label>
+              {authError ? <p className="error-text inline-error">{authError}</p> : null}
+              <button type="submit" className="primary-button" disabled={authSubmitting}>
+                {authSubmitting ? "Проверяем..." : "Открыть админку"}
+              </button>
+            </form>
+          </section>
+        </div>
+      </main>
+    );
   }
 
   return (
@@ -132,9 +242,14 @@ export function AdminPage() {
               <p className="eyebrow">Admin Console</p>
               <h1>Участники и результаты</h1>
             </div>
-            <a className="secondary-button" href={exportCsvUrl(adminParams)}>
-              Экспорт CSV
-            </a>
+            <div className="admin-actions">
+              <button type="button" className="secondary-button" onClick={handleExportCsv} disabled={exporting}>
+                {exporting ? "Готовим CSV..." : "Экспорт CSV"}
+              </button>
+              <button type="button" className="secondary-button" onClick={handleLogout}>
+                Выйти
+              </button>
+            </div>
           </div>
 
           <div className="admin-filters">

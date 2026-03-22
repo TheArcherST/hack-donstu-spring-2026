@@ -40,9 +40,10 @@ test("structure gravity drops unsupported blocks one row per tick, including sta
   grid[19][4] = createCell(2);
   grid[19][5] = createCell(2);
 
-  const movedBlocks = applyStructureGravityStep(grid);
+  const result = applyStructureGravityStep(grid);
 
-  assert.equal(movedBlocks, 2);
+  assert.equal(result.movedBlocks, 2);
+  assert.equal(result.collapsedBlocks, 0);
   assert.equal(grid[19][4]?.blockId, 2);
   assert.equal(grid[19][5]?.blockId, 2);
   assert.equal(grid[20][4]?.blockId, 2);
@@ -51,6 +52,33 @@ test("structure gravity drops unsupported blocks one row per tick, including sta
   assert.equal(grid[21][5]?.blockId, 1);
   assert.equal(grid[22][4]?.blockId, 1);
   assert.equal(grid[22][5]?.blockId, 1);
+});
+
+test("partially supported blocks tilt and self-destruct after a short collapse window", () => {
+  const grid = createEmptyGrid();
+
+  grid[22][4] = createCell(1);
+  grid[22][5] = createCell(1);
+  grid[23][4] = createCell(2);
+
+  const firstStep = applyStructureGravityStep(grid, new Set(), 260);
+  assert.equal(firstStep.movedBlocks, 0);
+  assert.equal(firstStep.collapsedBlocks, 0);
+  assert.equal(grid[22][4]?.tiltDirection, 1);
+  assert.ok((grid[22][4]?.collapseProgress ?? 0) > 0);
+
+  let collapsed = false;
+  for (let index = 0; index < 12; index += 1) {
+    const step = applyStructureGravityStep(grid, new Set(), 260);
+    if (step.collapsedBlocks > 0) {
+      collapsed = true;
+      break;
+    }
+  }
+
+  assert.equal(collapsed, true);
+  assert.equal(grid[22][4], null);
+  assert.equal(grid[22][5], null);
 });
 
 test("cable hit debuff stays strong briefly and then decays over time", () => {

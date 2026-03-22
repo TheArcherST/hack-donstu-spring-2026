@@ -55,6 +55,19 @@ interface CableHitDebuff {
   ageMs: number;
 }
 
+interface BlockSupportProfile {
+  bottomCells: number;
+  supportedCells: number;
+  tiltDirection: -1 | 0 | 1;
+  supportedRatio: number;
+}
+
+export interface StructureStepResult {
+  movedBlocks: number;
+  collapsedBlocks: number;
+  collapsedCells: number;
+}
+
 export interface SimulationState {
   grid: Array<Array<Cell | null>>;
   activePiece: Piece | null;
@@ -91,6 +104,7 @@ export interface SimulationState {
 export const STABLE_TARGET_MS = 8_000;
 export const CABLE_HIT_DEBUFF_PEAK_MS = 3_000;
 export const CABLE_HIT_DEBUFF_TOTAL_MS = 15_000;
+export const BLOCK_COLLAPSE_TOTAL_MS = 2_600;
 
 let pieceId = 0;
 let packetId = 0;
@@ -287,9 +301,48 @@ export function shiftBlockDown(grid: Array<Array<Cell | null>>, blockId: number)
   return true;
 }
 
+function analyzeBlockSupport(grid: Array<Array<Cell | null>>, members: BlockMember[]): BlockSupportProfile {
+  const memberKeys = new Set(members.map(({ x, y }) => `${x}:${y}`));
+  const bottomMembers = members.filter(({ x, y }) => !memberKeys.has(`${x}:${y + 1}`));
+  const supportedBottomMembers = bottomMembers.filter(({ x, y }) => {
+    if (y >= BOARD_ROWS - 1) {
+      return true;
+    }
+    const below = grid[y + 1][x];
+    return below !== null && !memberKeys.has(`${x}:${y + 1}`);
+  });
+
+  if (bottomMembers.length === 0) {
+    return { bottomCells: 0, supportedCells: 0, tiltDirection: 0, supportedRatio: 0 };
+  }
+
+  const bottomXs = bottomMembers.map(({ x }) => x);
+  const supportXs = supportedBottomMembers.map(({ x }) => x);
+  const minBottomX = Math.min(...bottomXs);
+  const maxBottomX = Math.max(...bottomXs);
+  const minSupportX = supportXs.length > 0 ? Math.min(...supportXs) : minBottomX;
+  const maxSupportX = supportXs.length > 0 ? Math.max(...supportXs) : maxBottomX;
+  const unsupportedLeft = Math.max(0, minSupportX - minBottomX);
+  const unsupportedRight = Math.max(0, maxBottomX - maxSupportX);
+  const hasSupportOnBothEdges = supportXs.length > 0 && minSupportX === minBottomX && maxSupportX === maxBottomX;
+
+  let tiltDirection: -1 | 0 | 1 = 0;
+  if (!hasSupportOnBothEdges && supportedBottomMembers.length > 0 && supportedBottomMembers.length < bottomMembers.length) {
+    tiltDirection = unsupportedRight >= unsupportedLeft ? 1 : -1;
+  }
+
+  return {
+    bottomCells: bottomMembers.length,
+    supportedCells: supportedBottomMembers.length,
+    tiltDirection,
+    supportedRatio: supportedBottomMembers.length / bottomMembers.length,
+  };
+}
+
 export function applyStructureGravityStep(
   grid: Array<Array<Cell | null>>,
   blockedCells = new Set<string>(),
+  stepMs = 140,
 ) {
   const blockDepths = new Map<number, number>();
   for (let y = 0; y < BOARD_ROWS; y += 1) {
@@ -301,21 +354,78 @@ export function applyStructureGravityStep(
     }
   }
 
-  let movedBlocks = 0;
+  const result: StructureStepResult = {
+    movedBlocks: 0,
+    collapsedBlocks: 0,
+    collapsedCells: 0,
+  };
   const orderedBlockIds = [...blockDepths.entries()]
     .sort((left, right) => right[1] - left[1])
     .map(([blockId]) => blockId);
 
   for (const blockId of orderedBlockIds) {
-    if (!canShiftBlockDown(grid, blockId, blockedCells)) {
+    const members = collectBlockMembers(grid, blockId);
+    const sample = members[0]?.cell;
+    if (!sample) {
       continue;
     }
-    if (shiftBlockDown(grid, blockId)) {
-      movedBlocks += 1;
+
+    const support = analyzeBlockSupport(grid, members);
+    const isAlreadyCollapsing = (sample.collapseProgress ?? 0) > 0;
+    const shouldCollapse =
+      isAlreadyCollapsing ||
+      (support.tiltDirection !== 0 &&
+        support.bottomCells >= 2 &&
+        support.supportedRatio <= 0.5);
+
+    if (!shouldCollapse && canShiftBlockDown(grid, blockId, blockedCells) && support.supportedCells === 0) {
+      if (shiftBlockDown(grid, blockId)) {
+        patchBlock(grid, blockId, {
+          fallProgress: 1,
+          tiltDirection: 0,
+          tiltProgress: 0,
+          collapseProgress: 0,
+        });
+        result.movedBlocks += 1;
+      }
+      continue;
     }
+
+    if (!shouldCollapse) {
+      patchBlock(grid, blockId, {
+        fallProgress: 0,
+        tiltDirection: 0,
+        tiltProgress: 0,
+        collapseProgress: 0,
+      });
+      continue;
+    }
+
+    const collapseProgress = Math.min(1, (sample.collapseProgress ?? 0) + stepMs / BLOCK_COLLAPSE_TOTAL_MS);
+    const tiltDirection = isAlreadyCollapsing
+      ? ((sample.tiltDirection ?? support.tiltDirection) || 1)
+      : support.tiltDirection;
+
+    if (collapseProgress >= 1) {
+      removeBlock(grid, blockId);
+      result.collapsedBlocks += 1;
+      result.collapsedCells += members.length;
+      continue;
+    }
+
+    const nextDurability = Math.max(1, Math.ceil(sample.maxDurability * (1 - collapseProgress)));
+    patchBlock(grid, blockId, {
+      durability: nextDurability,
+      fortified: 0,
+      flash: 1,
+      tiltDirection,
+      tiltProgress: collapseProgress,
+      collapseProgress,
+      fallProgress: 0,
+    });
   }
 
-  return movedBlocks;
+  return result;
 }
 
 export function computeBlockDurability(category: BlockCategory, cellCount: number) {

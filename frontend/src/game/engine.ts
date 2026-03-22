@@ -312,6 +312,10 @@ export function createGameEngine(config: EngineConfig): EngineControls {
         surfaceStyle: activePiece.surfaceStyle,
         textureSrc: activePiece.textureSrc,
         textureRotation: activePiece.textureRotation,
+        fallProgress: 0,
+        tiltDirection: 0,
+        tiltProgress: 0,
+        collapseProgress: 0,
       };
     }
 
@@ -383,7 +387,13 @@ export function createGameEngine(config: EngineConfig): EngineControls {
 
   function applyStructureGravity() {
     const blockedCells = getActivePieceBlockedCells();
-    return applyStructureGravityStep(state.grid, blockedCells);
+    const result = applyStructureGravityStep(state.grid, blockedCells, STRUCTURE_GRAVITY_INTERVAL_MS);
+    if (result.collapsedBlocks > 0) {
+      state.destroyedSegments += result.collapsedBlocks;
+      state.systemIntegrity = Math.max(0, state.systemIntegrity - (result.collapsedBlocks * 1.2 + result.collapsedCells * 0.35));
+      config.onSound("break");
+    }
+    return result;
   }
 
   function performAttack() {
@@ -584,6 +594,10 @@ export function createGameEngine(config: EngineConfig): EngineControls {
       for (const cell of row) {
         if (cell) {
           cell.flash = Math.max(0, cell.flash - delta / 250);
+          cell.fallProgress = Math.max(0, (cell.fallProgress ?? 0) - delta / 180);
+          if ((cell.collapseProgress ?? 0) <= 0) {
+            cell.tiltProgress = Math.max(0, (cell.tiltProgress ?? 0) - delta / 220);
+          }
         }
       }
     }

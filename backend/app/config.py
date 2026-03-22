@@ -13,6 +13,7 @@ class Settings(BaseSettings):
         alias="DATABASE_URL",
     )
     api_cors_origins: str = Field(default="http://localhost:8080", alias="API_CORS_ORIGINS")
+    admin_password: str = Field(default="", alias="ADMIN_PASSWORD")
 
     @property
     def cors_origins(self) -> list[str]:

@@ -251,6 +251,17 @@ select:focus {
   box-shadow: 0 0 0 4px rgba(0, 119, 255, 0.12);
 }
 
+input.input-error,
+select.input-error {
+  border-color: rgba(255, 108, 108, 0.72);
+  box-shadow: 0 0 0 4px rgba(255, 87, 87, 0.1);
+}
+
+.field-error {
+  color: #ffb2b2;
+  line-height: 1.4;
+}
+
 .consent-row {
   display: flex !important;
   align-items: center;
@@ -292,6 +303,13 @@ select:focus {
   color: var(--text);
   border: 1px solid rgba(255, 255, 255, 0.1);
   text-decoration: none;
+}
+
+.primary-button:disabled,
+.secondary-button:disabled {
+  opacity: 0.65;
+  cursor: default;
+  transform: none;
 }
 
 .error-text {
@@ -711,6 +729,17 @@ select:focus {
   justify-content: space-between;
 }
 
+.admin-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.admin-login-panel {
+  width: min(520px, 100%);
+  margin: 0 auto;
+}
+
 .admin-table {
   display: grid;
   gap: 10px;
@@ -893,6 +922,12 @@ select:focus {
 }
 
 @media (max-width: 720px) {
+  .admin-header,
+  .admin-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   .briefing-hud {
     width: min(calc(100vw - 84px), 240px);
     gap: 10px;

@@ -794,6 +794,27 @@ function drawBlockGroup(
     !usesContainerSpritesheet && cell.durability < cell.maxDurability
       ? { src: DAMAGE_TEXTURES[cell.durability <= Math.max(1, Math.floor(cell.maxDurability * 0.45)) ? 1 : 0] }
       : null;
+  const fallOffsetY = (cell.fallProgress ?? 0) * (layout.cellSize + layout.rowGap);
+  const tiltProgress = cell.collapseProgress ?? cell.tiltProgress ?? 0;
+  const tiltDirection = cell.tiltDirection ?? 0;
+  const tiltAngle = tiltDirection * tiltProgress * (Math.PI / 18);
+  const pivotX =
+    tiltDirection > 0
+      ? bounds.minX + (bounds.maxX - bounds.minX) * 0.22
+      : tiltDirection < 0
+        ? bounds.maxX - (bounds.maxX - bounds.minX) * 0.22
+        : (bounds.minX + bounds.maxX) / 2;
+  const pivotY = bounds.maxY;
+
+  ctx.save();
+  if (fallOffsetY > 0 || tiltAngle !== 0) {
+    ctx.translate(0, -fallOffsetY);
+    if (tiltAngle !== 0) {
+      ctx.translate(pivotX, pivotY);
+      ctx.rotate(tiltAngle);
+      ctx.translate(-pivotX, -pivotY);
+    }
+  }
 
   if (cell.surfaceStyle === "textured" && cell.textureSrc) {
     drawBlockTexture(ctx, baseTexture, path, bounds.minX, bounds.minY, bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
@@ -819,6 +840,8 @@ function drawBlockGroup(
     ctx.fill(path);
     ctx.restore();
   }
+
+  ctx.restore();
 }
 
 function drawAuditBursts(ctx: CanvasRenderingContext2D, snapshot: GameSnapshot, layout: ReturnType<typeof getSceneLayout>) {
@@ -878,6 +901,10 @@ function drawBlocksLayer(ctx: CanvasRenderingContext2D, snapshot: GameSnapshot, 
       surfaceStyle: snapshot.activePiece.surfaceStyle,
       textureSrc: snapshot.activePiece.textureSrc,
       textureRotation: snapshot.activePiece.textureRotation,
+      fallProgress: 0,
+      tiltDirection: 0,
+      tiltProgress: 0,
+      collapseProgress: 0,
     },
     getPieceCells(snapshot.activePiece),
     true,

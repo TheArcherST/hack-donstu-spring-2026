@@ -25,6 +25,10 @@ export interface Cell extends BlockVisual {
   fortified: number;
   audited: boolean;
   flash: number;
+  fallProgress?: number;
+  tiltDirection?: -1 | 0 | 1;
+  tiltProgress?: number;
+  collapseProgress?: number;
 }
 
 export interface Piece extends BlockVisual {

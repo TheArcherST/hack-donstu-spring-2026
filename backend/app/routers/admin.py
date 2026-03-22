@@ -4,11 +4,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
+from app.auth import require_admin_password
 from app.database import get_db
 from app.schemas import AdminEntriesResponse, PrizeIssuedUpdate, SessionOut
 from app.services.admin import AdminSortBy, SortDirection, export_entries_csv, fetch_admin_entries, update_session_prize
 
-router = APIRouter(prefix="/api/admin")
+router = APIRouter(prefix="/api/admin", dependencies=[Depends(require_admin_password)])
 
 
 @router.get("/entries", response_model=AdminEntriesResponse)

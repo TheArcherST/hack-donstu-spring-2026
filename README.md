@@ -12,12 +12,23 @@ Mobile-first браузерная игра для стенда DDoS-Guard с л�
 ## Запуск
 
 1. Скопировать `.env.example` в `.env`.
-2. Выполнить `make up`.
-3. Открыть `http://localhost:<COMPOSE__FRONTEND__PORT>` из `.env`.
-4. Админка доступна по `http://localhost:<COMPOSE__FRONTEND__PORT>/admin`.
+2. При первом запуске `make up` автоматически создаст `deploy/nginx/nginx.conf` из `deploy/nginx/nginx.conf.example`.
+3. При необходимости отредактировать `deploy/nginx/nginx.conf`: указать домен в `server_name` и включить TLS-блок.
+4. Положить сертификаты в `deploy/nginx/certs/`, если нужен HTTPS.
+5. Выполнить `make up`.
+6. Открыть `http://localhost:<COMPOSE__NGINX__HTTP_PORT>` из `.env`.
+7. Админка доступна по `http://localhost:<COMPOSE__NGINX__HTTP_PORT>/admin`.
 
-Публикация портов сервисов настраивается через поля вида `COMPOSE__<SERVICE>__HOST` и `COMPOSE__<SERVICE>__PORT`.
-По умолчанию сервисы слушают только `127.0.0.1`; если нужно открыть их наружу, выставьте соответствующий `COMPOSE__...__HOST=0.0.0.0`.
+Наружу публикуется только reverse proxy `nginx`; frontend и backend остаются внутри docker-сети.
+Публикация портов прокси настраивается через `COMPOSE__NGINX__HOST`, `COMPOSE__NGINX__HTTP_PORT` и `COMPOSE__NGINX__HTTPS_PORT`.
+По умолчанию прокси слушает только `127.0.0.1`; если нужно открыть проект наружу, выставьте `COMPOSE__NGINX__HOST=0.0.0.0`.
+
+## Nginx reverse proxy
+
+- Шаблон конфига лежит в `deploy/nginx/nginx.conf.example`.
+- Рабочий конфиг: `deploy/nginx/nginx.conf`. Этот файл не коммитится и предназначен для правок под конкретный сервер.
+- Каталог `deploy/nginx/certs/` зарезервирован под `fullchain.pem` и `privkey.pem` либо другие сертификаты, на которые вы сошлётесь в `nginx.conf`.
+- Внутри compose nginx маршрутизирует `/api/` в FastAPI backend, а все остальные запросы отправляет во frontend.
 
 ## API
 

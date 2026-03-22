@@ -12,3 +12,6 @@ backend/.venv/
 frontend/node_modules/
 frontend/dist/
 assets/DDoS-Guard - руководство по фирменному стилю/DDoS-Guard - руководство по фирменному стилю.txt
+deploy/nginx/nginx.conf
+deploy/nginx/certs/*
+!deploy/nginx/certs/.gitkeep

@@ -26,5 +26,12 @@ restart:
 prepare-nginx:
 	@if [ ! -f deploy/nginx/nginx.conf ]; then \
 		cp deploy/nginx/nginx.conf.example deploy/nginx/nginx.conf; \
-		echo "Created deploy/nginx/nginx.conf from example. Review server_name and TLS settings before production deploy."; \
+		echo "Created deploy/nginx/nginx.conf from example."; \
+	fi
+	@if [ ! -d deploy/nginx/conf.d ]; then \
+		mkdir -p deploy/nginx/conf.d; \
+	fi
+	@if [ ! -f deploy/nginx/conf.d/default.conf ]; then \
+		cp deploy/nginx/conf.d/default.conf.example deploy/nginx/conf.d/default.conf; \
+		echo "Created deploy/nginx/conf.d/default.conf from example. Review server_name and TLS settings before production deploy."; \
 	fi

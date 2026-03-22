@@ -12,8 +12,8 @@ Mobile-first браузерная игра для стенда DDoS-Guard с л�
 ## Запуск
 
 1. Скопировать `.env.example` в `.env`.
-2. При первом запуске `make up` автоматически создаст `deploy/nginx/nginx.conf` из `deploy/nginx/nginx.conf.example`.
-3. При необходимости отредактировать `deploy/nginx/nginx.conf`: указать домен в `server_name` и включить TLS-блок.
+2. При первом запуске `make up` автоматически создаст `deploy/nginx/nginx.conf` и `deploy/nginx/conf.d/default.conf` из шаблонов.
+3. При необходимости отредактировать `deploy/nginx/conf.d/default.conf`: указать домен в `server_name` и включить TLS-блок.
 4. Положить сертификаты в `deploy/nginx/certs/`, если нужен HTTPS.
 5. Выполнить `make up`.
 6. Открыть `http://localhost:<COMPOSE__NGINX__HTTP_PORT>` из `.env`.
@@ -25,10 +25,11 @@ Mobile-first браузерная игра для стенда DDoS-Guard с л�
 
 ## Nginx reverse proxy
 
-- Шаблон конфига лежит в `deploy/nginx/nginx.conf.example`.
-- Рабочий конфиг: `deploy/nginx/nginx.conf`. Этот файл не коммитится и предназначен для правок под конкретный сервер.
-- Каталог `deploy/nginx/certs/` зарезервирован под `fullchain.pem` и `privkey.pem` либо другие сертификаты, на которые вы сошлётесь в `nginx.conf`.
-- Внутри compose nginx маршрутизирует `/api/` в FastAPI backend, а все остальные запросы отправляет во frontend.
+- Корневой шаблон `nginx.conf` лежит в `deploy/nginx/nginx.conf.example`.
+- Шаблон виртуального хоста лежит в `deploy/nginx/conf.d/default.conf.example`.
+- Рабочие файлы: `deploy/nginx/nginx.conf` и `deploy/nginx/conf.d/default.conf`. Эти файлы не коммитятся и предназначены для правок под конкретный сервер.
+- Каталог `deploy/nginx/certs/` зарезервирован под `fullchain.pem` и `privkey.pem` либо другие сертификаты, на которые вы сошлётесь в `deploy/nginx/conf.d/default.conf`.
+- Внутри compose основной `nginx.conf` подключает `/etc/nginx/conf.d/*.conf`, а `default.conf` маршрутизирует `/api/` в FastAPI backend и все остальные запросы во frontend.
 
 ## API
 

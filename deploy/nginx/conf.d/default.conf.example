@@ -1,0 +1,77 @@
+server {
+  listen 80;
+  listen [::]:80;
+  server_name _;
+
+  client_max_body_size 10m;
+
+  location /api/ {
+    proxy_pass http://backend:8000;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host $host;
+  }
+
+  location / {
+    proxy_pass http://frontend:80;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host $host;
+  }
+}
+
+# To enable HTTPS on the target server:
+# 1. Copy this file to deploy/nginx/conf.d/default.conf.
+# 2. Replace server_name with your domain.
+# 3. Place certificates into deploy/nginx/certs/.
+# 4. Uncomment the blocks below and adjust certificate filenames if needed.
+#
+# server {
+#   listen 80;
+#   listen [::]:80;
+#   server_name example.com www.example.com;
+#
+#   return 301 https://$host$request_uri;
+# }
+#
+# server {
+#   listen 443 ssl;
+#   listen [::]:443 ssl;
+#   http2 on;
+#   server_name example.com www.example.com;
+#
+#   ssl_certificate /etc/nginx/certs/fullchain.pem;
+#   ssl_certificate_key /etc/nginx/certs/privkey.pem;
+#   ssl_session_timeout 1d;
+#   ssl_session_cache shared:SSL:10m;
+#   ssl_protocols TLSv1.2 TLSv1.3;
+#   ssl_prefer_server_ciphers off;
+#
+#   client_max_body_size 10m;
+#
+#   location /api/ {
+#     proxy_pass http://backend:8000;
+#     proxy_http_version 1.1;
+#     proxy_set_header Host $host;
+#     proxy_set_header X-Real-IP $remote_addr;
+#     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#     proxy_set_header X-Forwarded-Proto https;
+#     proxy_set_header X-Forwarded-Host $host;
+#   }
+#
+#   location / {
+#     proxy_pass http://frontend:80;
+#     proxy_http_version 1.1;
+#     proxy_set_header Host $host;
+#     proxy_set_header X-Real-IP $remote_addr;
+#     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#     proxy_set_header X-Forwarded-Proto https;
+#     proxy_set_header X-Forwarded-Host $host;
+#   }
+# }

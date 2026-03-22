@@ -10,10 +10,11 @@ import type { CompletionResult } from "../types";
 interface UseGameSessionOptions {
   sessionId: number;
   soundEnabled: boolean;
+  enabled: boolean;
   onCompleted: (result: CompletionResult) => void;
 }
 
-export function useGameSession({ sessionId, soundEnabled, onCompleted }: UseGameSessionOptions) {
+export function useGameSession({ sessionId, soundEnabled, enabled, onCompleted }: UseGameSessionOptions) {
   const controlsRef = useRef<EngineControls | null>(null);
   const gestureRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const onCompletedRef = useRef(onCompleted);
@@ -30,6 +31,15 @@ export function useGameSession({ sessionId, soundEnabled, onCompleted }: UseGame
   audioRef.current = audio;
 
   useEffect(() => {
+    if (!enabled) {
+      frameSnapshotRef.current = null;
+      hudSnapshotRef.current = null;
+      lastHudCommitAtRef.current = 0;
+      setHudSnapshot(null);
+      audioRef.current.setBackgroundActive(false);
+      return;
+    }
+
     const engine = createGameEngine({
       onStateChange: (nextSnapshot) => {
         frameSnapshotRef.current = nextSnapshot;
@@ -111,7 +121,7 @@ export function useGameSession({ sessionId, soundEnabled, onCompleted }: UseGame
       engine.stop();
       controlsRef.current = null;
     };
-  }, [sessionId]);
+  }, [enabled, sessionId]);
 
   function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
     event.preventDefault();

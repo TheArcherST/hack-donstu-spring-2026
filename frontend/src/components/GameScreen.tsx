@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 
+import { GAME_IMAGE_ASSET_URLS } from "../game/assets";
 import { advanceCameraLift, getCameraLiftTarget } from "../game/camera";
+import { preloadTextureSources, renderSnapshot } from "../game/render";
 import { useGameSession } from "../game/useGameSession";
 import { formatSeconds } from "../lib/format";
-import { renderSnapshot } from "../game/render";
 import { getSceneLayout } from "../game/scene";
 import { fitViewport } from "../game/viewport";
 import type { CompletionResult } from "../types";
@@ -43,13 +44,42 @@ export function GameScreen({ sessionId, soundEnabled, onToggleSound, onCompleted
   const stageRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [viewport, setViewport] = useState({ width: 390, height: 844, offsetX: 0, offsetY: 0, dpr: 1 });
-  const { frameSnapshotRef, hudSnapshot, error, saving, stageHandlers } = useGameSession({ sessionId, soundEnabled, onCompleted });
+  const [assetsReady, setAssetsReady] = useState(false);
+  const [assetError, setAssetError] = useState<string | null>(null);
+  const { frameSnapshotRef, hudSnapshot, error, saving, stageHandlers } = useGameSession({
+    sessionId,
+    soundEnabled,
+    enabled: assetsReady,
+    onCompleted,
+  });
   const viewportRef = useRef({ width: 390, height: 844, offsetX: 0, offsetY: 0, dpr: 1 });
   const cameraLiftRef = useRef(0);
   const renderFrameRef = useRef(0);
   const lastRenderTimeRef = useRef(0);
 
   viewportRef.current = viewport;
+
+  useEffect(() => {
+    let cancelled = false;
+    setAssetsReady(false);
+    setAssetError(null);
+
+    preloadTextureSources(GAME_IMAGE_ASSET_URLS)
+      .then(() => {
+        if (!cancelled) {
+          setAssetsReady(true);
+        }
+      })
+      .catch((loadError) => {
+        if (!cancelled) {
+          setAssetError(loadError instanceof Error ? loadError.message : "Не удалось загрузить игровые ресурсы.");
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const stage = stageRef.current;
@@ -158,9 +188,23 @@ export function GameScreen({ sessionId, soundEnabled, onToggleSound, onCompleted
         onPointerCancel={stageHandlers.onPointerCancel}
         onContextMenu={stageHandlers.onContextMenu}
       >
-        <canvas ref={canvasRef} className="game-canvas" width={viewport.width} height={viewport.height} />
+        <canvas
+          ref={canvasRef}
+          className="game-canvas"
+          width={viewport.width}
+          height={viewport.height}
+          style={{ opacity: assetsReady ? 1 : 0 }}
+        />
 
-        {hudSnapshot ? (
+        {assetError ? (
+          <div className="game-overlay game-overlay-center game-loading">
+            <p className="muted">{assetError}</p>
+          </div>
+        ) : !assetsReady ? (
+          <div className="game-overlay game-overlay-center game-loading">
+            <p className="muted">Загружаем игровые ресурсы...</p>
+          </div>
+        ) : hudSnapshot ? (
           <>
             <header className="game-overlay game-overlay-top game-hud">
               <div className="game-hud-column game-hud-column-left">

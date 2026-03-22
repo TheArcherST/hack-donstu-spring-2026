@@ -505,6 +505,20 @@ select.input-error {
   padding: clamp(18px, 3vw, 32px);
 }
 
+.briefing-points {
+  display: grid;
+  gap: 10px;
+}
+
+.briefing-points p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.94);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.35;
+  text-shadow: 0 2px 12px rgba(3, 8, 14, 0.82);
+}
+
 .briefing-copy h2 {
   margin: 0;
   font-family: "Montserrat", "Segoe UI", sans-serif;

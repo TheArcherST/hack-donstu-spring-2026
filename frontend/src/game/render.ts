@@ -82,6 +82,51 @@ function getTexture(src: string) {
   return image;
 }
 
+function waitForTexture(image: HTMLImageElement, src: string) {
+  if (image.complete && image.naturalWidth > 0) {
+    return Promise.resolve();
+  }
+
+  return new Promise<void>((resolve, reject) => {
+    const handleLoad = () => {
+      cleanup();
+      resolve();
+    };
+    const handleError = () => {
+      cleanup();
+      reject(new Error(src));
+    };
+    const cleanup = () => {
+      image.removeEventListener("load", handleLoad);
+      image.removeEventListener("error", handleError);
+    };
+
+    image.addEventListener("load", handleLoad);
+    image.addEventListener("error", handleError);
+  });
+}
+
+export async function preloadTextureSources(sources: readonly string[]) {
+  const uniqueSources = [...new Set(sources)];
+  const results = await Promise.allSettled(
+    uniqueSources.map(async (src) => {
+      const image = getTexture(src);
+      if (!image) {
+        return;
+      }
+      await waitForTexture(image, src);
+    }),
+  );
+
+  const failedSources = results.flatMap((result, index) =>
+    result.status === "rejected" ? [uniqueSources[index]] : [],
+  );
+
+  if (failedSources.length > 0) {
+    throw new Error(`Не удалось загрузить ресурсы: ${failedSources.join(", ")}`);
+  }
+}
+
 function drawImageFitInRect(
   ctx: CanvasRenderingContext2D,
   image: HTMLImageElement,

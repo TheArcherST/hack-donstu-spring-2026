@@ -1,6 +1,5 @@
 import { formatSeconds } from "../lib/format";
 import type { CompletionResult } from "../types";
-import { LeaderboardCard } from "./LeaderboardCard";
 import { PacketLossChart } from "./PacketLossChart";
 
 interface ResultScreenProps {
@@ -9,7 +8,7 @@ interface ResultScreenProps {
 }
 
 export function ResultScreen({ result, onReset }: ResultScreenProps) {
-  const { session, rank, leaderboard } = result;
+  const { session, rank } = result;
   const success = session.won;
   const { network_metrics, stability_window } = session.result_details;
 
@@ -74,7 +73,6 @@ export function ResultScreen({ result, onReset }: ResultScreenProps) {
           Следующий участник
         </button>
       </section>
-      <LeaderboardCard items={leaderboard} title="Актуальный рейтинг" />
     </div>
   );
 }

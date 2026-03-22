@@ -1,14 +1,10 @@
 import { useEffect, useState } from "react";
 
-import type { BootstrapResponse, CompletionResult, LeaderboardEntry } from "../types";
+import type { BootstrapResponse, CompletionResult } from "../types";
 
 export type ScreenState = "form" | "briefing" | "game" | "result";
 
-interface UseGameFlowOptions {
-  onLeaderboardRefresh: (items: LeaderboardEntry[]) => void;
-}
-
-export function useGameFlow({ onLeaderboardRefresh }: UseGameFlowOptions) {
+export function useGameFlow() {
   const [screen, setScreen] = useState<ScreenState>("form");
   const [bootstrap, setBootstrap] = useState<BootstrapResponse | null>(null);
   const [result, setResult] = useState<CompletionResult | null>(null);
@@ -28,7 +24,6 @@ export function useGameFlow({ onLeaderboardRefresh }: UseGameFlowOptions) {
   function handleCompleted(completion: CompletionResult) {
     setResult(completion);
     setScreen("result");
-    onLeaderboardRefresh(completion.leaderboard);
   }
 
   useEffect(() => {

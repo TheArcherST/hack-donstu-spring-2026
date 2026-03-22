@@ -74,17 +74,6 @@ export interface BootstrapResponse {
   session: GameSession;
 }
 
-export interface LeaderboardEntry {
-  session_id: number;
-  full_name: string;
-  score: number;
-  won: boolean;
-  protection_level: number;
-  packet_loss: number;
-  delivered_packets: number;
-  completed_at: string | null;
-}
-
 export interface CompletionPayload {
   score: number;
   won: boolean;
@@ -100,7 +89,6 @@ export interface CompletionPayload {
 export interface CompletionResult {
   session: GameSession;
   rank: number;
-  leaderboard: LeaderboardEntry[];
 }
 
 export interface AdminEntry {

@@ -1,23 +1,11 @@
 import { ContactForm } from "../components/ContactForm";
 import { BriefingScreen } from "../components/BriefingScreen";
 import { GameScreen } from "../components/GameScreen";
-import { LeaderboardCard } from "../components/LeaderboardCard";
 import { ResultScreen } from "../components/ResultScreen";
-import type { LeaderboardEntry } from "../types";
 import { useGameFlow } from "./useGameFlow";
 
-interface GameExperienceProps {
-  initialLeaderboard: LeaderboardEntry[];
-  leaderboardError: string | null;
-  onLeaderboardRefresh: (items: LeaderboardEntry[]) => void;
-}
-
-export function GameExperience({
-  initialLeaderboard,
-  leaderboardError,
-  onLeaderboardRefresh,
-}: GameExperienceProps) {
-  const flow = useGameFlow({ onLeaderboardRefresh });
+export function GameExperience() {
+  const flow = useGameFlow();
 
   return (
     <main className={`app-shell screen-${flow.screen}`}>
@@ -25,13 +13,7 @@ export function GameExperience({
       <div className={`app-content screen-${flow.screen}`}>
         {flow.screen === "form" ? (
           <div className="experience-grid">
-            <ContactForm
-              onCreated={flow.handleCreated}
-            />
-            <div className="stack-column">
-              <LeaderboardCard items={initialLeaderboard.slice(0, 6)} />
-              {leaderboardError ? <p className="error-text inline-error">{leaderboardError}</p> : null}
-            </div>
+            <ContactForm onCreated={flow.handleCreated} />
           </div>
         ) : null}
 

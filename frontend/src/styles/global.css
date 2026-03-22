@@ -128,8 +128,7 @@ body.game-active {
 
 .hero-panel,
 .admin-panel,
-.game-panel,
-.leaderboard-card {
+.game-panel {
   padding: 24px;
 }
 
@@ -282,40 +281,6 @@ select.input-error {
   border: 1px solid rgba(255, 87, 87, 0.22);
 }
 
-.leaderboard-list {
-  display: grid;
-  gap: 10px;
-  margin-top: 18px;
-}
-
-.leaderboard-item {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 12px;
-  align-items: center;
-  padding: 14px 16px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.leaderboard-item p,
-.leaderboard-item strong,
-.leaderboard-item small {
-  margin: 0;
-}
-
-.leaderboard-rank {
-  display: inline-flex;
-  width: 40px;
-  height: 40px;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12px;
-  background: rgba(0, 119, 255, 0.16);
-  color: var(--brand-soft);
-}
-
 .game-panel {
   display: grid;
   gap: 16px;
@@ -354,6 +319,7 @@ select.input-error {
   position: relative;
   display: grid;
   place-items: center;
+  isolation: isolate;
   width: 100%;
   height: 100%;
   overflow: hidden;
@@ -369,6 +335,7 @@ select.input-error {
 .game-canvas {
   position: absolute;
   inset: 0 auto auto 0;
+  z-index: 0;
   display: block;
   touch-action: none;
 }
@@ -376,6 +343,27 @@ select.input-error {
 .screen-game .game-canvas {
   max-width: none;
   max-height: none;
+}
+
+.screen-game .game-stage::before,
+.screen-game .game-stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.screen-game .game-stage::before {
+  z-index: 1;
+  background:
+    linear-gradient(180deg, rgba(4, 8, 14, 0.62) 0%, rgba(4, 8, 14, 0.34) 12%, rgba(4, 8, 14, 0.1) 24%, transparent 38%),
+    radial-gradient(circle at 50% -10%, rgba(8, 14, 22, 0.28), transparent 42%);
+}
+
+.screen-game .game-stage::after {
+  z-index: 1;
+  background:
+    radial-gradient(ellipse 128% 86% at 50% 42%, transparent 62%, rgba(5, 9, 15, 0.1) 80%, rgba(5, 9, 15, 0.2) 92%, rgba(5, 9, 15, 0.3) 100%);
 }
 
 .briefing-stage {

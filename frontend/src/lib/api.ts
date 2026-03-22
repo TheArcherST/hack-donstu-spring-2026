@@ -3,7 +3,6 @@ import type {
   BootstrapResponse,
   CompletionPayload,
   CompletionResult,
-  LeaderboardEntry,
   ParticipantPayload,
 } from "../types";
 
@@ -89,10 +88,6 @@ export function createParticipant(payload: ParticipantPayload) {
     method: "POST",
     body: JSON.stringify(payload),
   });
-}
-
-export function fetchLeaderboard(limit = 10) {
-  return request<LeaderboardEntry[]>(`/leaderboard?limit=${limit}`);
 }
 
 export function completeSession(sessionId: number, payload: CompletionPayload) {

@@ -87,21 +87,9 @@ class SessionCompleteIn(BaseModel):
     result_details: SessionResultDetails
 
 
-class LeaderboardEntry(BaseModel):
-    session_id: int
-    full_name: str
-    score: int
-    won: bool
-    protection_level: int
-    packet_loss: int
-    delivered_packets: int
-    completed_at: datetime | None
-
-
 class SessionCompletionResult(BaseModel):
     session: SessionOut
     rank: int
-    leaderboard: list[LeaderboardEntry]
 
 
 class AdminEntry(BaseModel):

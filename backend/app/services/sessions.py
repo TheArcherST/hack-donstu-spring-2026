@@ -14,7 +14,7 @@ from app.schemas import (
     SessionCompletionResult,
     SessionOut,
 )
-from app.services.leaderboard import calculate_rank, fetch_leaderboard
+from app.services.leaderboard import calculate_rank
 from app.session_result import SessionResultDetails, default_session_result_details
 
 
@@ -82,5 +82,4 @@ def complete_game_session(db: Session, session: GameSession, payload: SessionCom
     return SessionCompletionResult(
         session=map_session_out(session),
         rank=calculate_rank(db, session),
-        leaderboard=fetch_leaderboard(db, limit=10),
     )

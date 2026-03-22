@@ -747,43 +747,15 @@ function drawAttackProjectiles(ctx: CanvasRenderingContext2D, snapshot: GameSnap
     const tangentX = sampleQuadraticTangent(path.startX, path.controlX, path.endX, eased);
     const tangentY = sampleQuadraticTangent(path.y, path.controlY, path.y, eased);
     const frameIndex = Math.min(frameCount - 1, Math.floor(projectile.age / 80) % frameCount);
-    const trailStartX = sampleQuadraticPoint(path.startX, path.controlX, path.endX, Math.max(0, eased - 0.06));
-    const trailStartY = sampleQuadraticPoint(path.y, path.controlY, path.y, Math.max(0, eased - 0.06));
-
-    ctx.save();
-    ctx.strokeStyle = "rgba(255, 124, 167, 0.5)";
-    ctx.lineWidth = Math.max(2.5, layout.cellSize * 0.12);
-    ctx.lineCap = "round";
-    ctx.beginPath();
-    ctx.moveTo(trailStartX, trailStartY);
-    ctx.lineTo(x, y);
-    ctx.stroke();
-    ctx.restore();
 
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(Math.atan2(tangentY, tangentX));
-    ctx.shadowBlur = layout.cellSize * 0.82;
-    ctx.shadowColor = "rgba(255, 120, 165, 0.75)";
     ctx.globalAlpha = clamp(0.72 + (1 - progress) * 0.28, 0.72, 1);
     drawImageStretchInRect(
       ctx,
       bulletSheet,
       { x: -bulletSize * 0.5, y: -bulletSize * 0.5, width: bulletSize, height: bulletSize },
-      1,
-      {
-        x: frameIndex * frameSize,
-        y: 0,
-        width: frameSize,
-        height: frameSize,
-      },
-    );
-    ctx.globalCompositeOperation = "lighter";
-    ctx.globalAlpha = 0.28;
-    drawImageStretchInRect(
-      ctx,
-      bulletSheet,
-      { x: -bulletSize * 0.58, y: -bulletSize * 0.58, width: bulletSize * 1.16, height: bulletSize * 1.16 },
       1,
       {
         x: frameIndex * frameSize,

@@ -127,7 +127,6 @@ body.game-active {
 }
 
 .hero-panel,
-.intro-panel,
 .admin-panel,
 .game-panel,
 .leaderboard-card {
@@ -172,47 +171,6 @@ body.game-active {
   margin: 0;
   color: var(--muted);
   line-height: 1.6;
-}
-
-.brand-logo {
-  width: min(220px, 60vw);
-  margin-bottom: 22px;
-}
-
-.mission-card {
-  margin-top: 22px;
-  display: grid;
-  gap: 18px;
-  padding: 20px;
-  border-radius: 24px;
-  background:
-    linear-gradient(135deg, rgba(0, 119, 255, 0.16), rgba(116, 212, 255, 0.08)),
-    rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(116, 212, 255, 0.2);
-}
-
-.signal-legend {
-  display: grid;
-  gap: 10px;
-}
-
-.signal-legend article {
-  display: grid;
-  gap: 4px;
-  padding: 12px 14px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-}
-
-.signal-legend strong {
-  font-size: 0.95rem;
-}
-
-.signal-legend span {
-  color: var(--muted);
-  font-size: 0.9rem;
-  line-height: 1.45;
 }
 
 .contact-form,
@@ -378,71 +336,15 @@ select.input-error {
   overflow: hidden;
 }
 
-.hud {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  align-items: stretch;
-}
-
-.hud-card {
-  display: grid;
-  gap: 8px;
-  padding: 14px 16px;
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.hud-card span,
-.hud-footer,
-.hud-meta {
-  color: var(--muted);
-}
-
-.hud-card strong {
-  font-size: 1.3rem;
-  font-family: "Montserrat", "Segoe UI", sans-serif;
-}
-
-.hud-protection {
-  grid-column: span 2;
-}
-
-.progress-bar {
-  width: 100%;
-  height: 10px;
-  border-radius: 999px;
-  overflow: hidden;
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.progress-bar i {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, #2b8cff, #74d4ff);
-}
-
 .sound-toggle {
   grid-column: span 2;
 }
 
-.screen-game .hud {
-  gap: 8px;
-}
-
-.screen-game .hud-card,
 .screen-game .sound-toggle {
   padding: 10px 12px;
   border-radius: 16px;
 }
 
-.screen-game .hud-card strong {
-  font-size: 1.1rem;
-}
-
-.screen-game .hud-protection,
 .screen-game .sound-toggle {
   grid-column: span 1;
 }
@@ -489,12 +391,6 @@ select.input-error {
   pointer-events: none;
 }
 
-.game-overlay-top {
-  top: max(8px, env(safe-area-inset-top));
-  left: 50%;
-  transform: translateX(-50%);
-}
-
 .game-overlay-top-left {
   top: max(8px, env(safe-area-inset-top));
   left: max(8px, env(safe-area-inset-left));
@@ -513,10 +409,6 @@ select.input-error {
 
 .game-loading {
   z-index: 2;
-}
-
-.game-overlay-bottom {
-  bottom: max(8px, env(safe-area-inset-bottom));
 }
 
 .hud-inline {
@@ -594,63 +486,6 @@ select.input-error {
   border-color: rgba(255, 255, 255, 0.04);
   backdrop-filter: none;
   box-shadow: none;
-}
-
-.hud-footer {
-  display: grid;
-  gap: 12px;
-  font-size: 0.93rem;
-}
-
-.hud-footer p {
-  margin: 0;
-  line-height: 1.5;
-}
-
-.hud-meta {
-  display: grid;
-  gap: 8px;
-}
-
-.screen-game .hud-footer {
-  gap: 0;
-}
-
-.screen-game .hud-meta {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.screen-game .hud-meta span {
-  display: grid;
-  place-items: center;
-  min-height: 44px;
-  padding: 8px 10px;
-  text-align: center;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.hud-footer-compact {
-  pointer-events: none;
-}
-
-.hud-meta-compact {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.hud-meta-compact span {
-  min-height: 0;
-  padding: 7px 8px;
-  font-size: 0.78rem;
-  line-height: 1.15;
-  border-radius: 12px;
-  background: rgba(8, 13, 20, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  backdrop-filter: blur(8px);
 }
 
 .briefing-center {
@@ -796,17 +631,6 @@ select.input-error {
   color: #ffbaba;
 }
 
-@keyframes intro-toast-in {
-  from {
-    transform: translateY(8px) scale(0.98);
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
 @media (min-width: 900px) {
   .experience-grid {
     grid-template-columns: minmax(0, 1.25fr) minmax(340px, 0.75fr);
@@ -820,19 +644,6 @@ select.input-error {
   .contact-form .consent-row,
   .contact-form .primary-button {
     grid-column: span 2;
-  }
-
-  .hud {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
-  .hud-protection,
-  .sound-toggle {
-    grid-column: span 1;
-  }
-
-  .hud-meta {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .admin-filters {
@@ -850,14 +661,8 @@ select.input-error {
 }
 
 @media (max-height: 860px) {
-  .screen-game .hud-card span,
-  .screen-game .hud-meta,
   .screen-game .sound-toggle {
     font-size: 0.85rem;
-  }
-
-  .screen-game .hud-card strong {
-    font-size: 1rem;
   }
 
   .hud-inline {
@@ -868,18 +673,9 @@ select.input-error {
   .hud-inline-metric strong {
     font-size: 0.86rem;
   }
-
-  .hud-meta-compact span {
-    font-size: 0.72rem;
-    padding: 6px 7px;
-  }
 }
 
 @media (max-width: 420px) {
-  .screen-game .hud-meta {
-    grid-template-columns: 1fr;
-  }
-
   .game-overlay-top-left {
     top: max(6px, env(safe-area-inset-top));
     left: max(6px, env(safe-area-inset-left));
@@ -908,17 +704,6 @@ select.input-error {
     border-radius: 10px;
     font-size: 0.72rem;
   }
-
-  .hud-meta-compact {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 4px;
-  }
-
-  .hud-meta-compact span {
-    padding: 6px 5px;
-    border-radius: 10px;
-    font-size: 0.68rem;
-  }
 }
 
 @media (max-width: 720px) {
@@ -926,11 +711,6 @@ select.input-error {
   .admin-actions {
     flex-direction: column;
     align-items: stretch;
-  }
-
-  .briefing-hud {
-    width: min(calc(100vw - 84px), 240px);
-    gap: 10px;
   }
 
   .briefing-center {

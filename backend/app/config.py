@@ -8,12 +8,9 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(case_sensitive=False, extra="ignore")
 
     app_name: str = "DDoS-Guard: Линия защиты API"
-    database_url: str = Field(
-        default="postgresql+psycopg://ddos_guard:ddos_guard@db:5432/ddos_guard",
-        alias="DATABASE_URL",
-    )
-    api_cors_origins: str = Field(default="http://localhost:8080", alias="API_CORS_ORIGINS")
-    admin_password: str = Field(default="", alias="ADMIN_PASSWORD")
+    database_url: str
+    api_cors_origins: str
+    admin_password: str
 
     @property
     def cors_origins(self) -> list[str]:

@@ -1,5 +1,5 @@
 import type { SessionResultDetails } from "../types.ts";
-import { MATCH_DURATION_SECONDS } from "./constants.ts";
+import { FINAL_PACKET_LOSS_WIN_THRESHOLD, MATCH_DURATION_SECONDS } from "./constants.ts";
 import type { FinishPayload } from "./types.ts";
 import { STABLE_TARGET_MS, type SimulationState } from "./simulation.ts";
 
@@ -21,11 +21,16 @@ export function calculatePacketLoss(deliveredPackets: number, droppedPackets: nu
   return Math.round((droppedPackets / totalPackets) * 100);
 }
 
+export function hasWonByPacketLoss(packetLoss: number) {
+  return packetLoss < FINAL_PACKET_LOSS_WIN_THRESHOLD;
+}
+
 export function buildResultDetails(state: SimulationState): SessionResultDetails {
+  const totalPacketLoss = calculatePacketLoss(state.deliveredPackets, state.droppedPackets);
   return {
     network_metrics: {
       link_quality: state.linkQuality,
-      packet_loss: state.packetLoss,
+      packet_loss: totalPacketLoss,
       throughput: state.throughput,
       latency_ms: state.latencyMs,
       delivered_packets: state.deliveredPackets,
@@ -41,6 +46,13 @@ export function buildResultDetails(state: SimulationState): SessionResultDetails
       system_integrity: Math.round(state.systemIntegrity),
       attack_intensity: state.attackIntensity,
     },
+    packet_loss_timeline:
+      state.packetLossHistory.length > 0
+        ? state.packetLossHistory.map((point) => ({
+            second: point.second,
+            packet_loss: point.packetLoss,
+          }))
+        : [{ second: 0, packet_loss: totalPacketLoss }],
   };
 }
 

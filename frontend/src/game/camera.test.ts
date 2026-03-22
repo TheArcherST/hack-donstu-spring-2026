@@ -63,6 +63,7 @@ function createSnapshot(filledRows: number[]): GameSnapshot {
     latencyMs: 0,
     deliveredPackets: 0,
     droppedPackets: 0,
+    activeIncidents: 0,
     recentPacketLoss: 0,
     stableHoldSeconds: 0,
     stableTargetSeconds: 0,

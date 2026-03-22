@@ -7,6 +7,11 @@ from pydantic import BaseModel, Field
 ChannelState = Literal["overloaded", "partial", "guarded"]
 
 
+class PacketLossTimelinePoint(BaseModel):
+    second: int = Field(default=0, ge=0)
+    packet_loss: int = Field(default=0, ge=0, le=100)
+
+
 class NetworkMetrics(BaseModel):
     link_quality: int = Field(default=0, ge=0, le=100)
     packet_loss: int = Field(default=0, ge=0, le=100)
@@ -32,6 +37,7 @@ class SessionResultDetails(BaseModel):
     network_metrics: NetworkMetrics = Field(default_factory=NetworkMetrics)
     stability_window: StabilityWindow = Field(default_factory=StabilityWindow)
     attack_summary: AttackSummary = Field(default_factory=AttackSummary)
+    packet_loss_timeline: list[PacketLossTimelinePoint] = Field(default_factory=list)
 
 
 def default_session_result_details() -> SessionResultDetails:

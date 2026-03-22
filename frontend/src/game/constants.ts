@@ -12,7 +12,7 @@ export const WIN_PROTECTION_THRESHOLD = 62;
 export const STABLE_LINK_QUALITY_THRESHOLD = 72;
 export const STABLE_PACKET_LOSS_THRESHOLD = 22;
 export const STABLE_LATENCY_THRESHOLD = 92;
-export const FINAL_PACKET_LOSS_WIN_THRESHOLD = 25;
+export const FINAL_PACKET_LOSS_WIN_THRESHOLD = 30;
 export const STABILITY_BONUS_SCORE_PER_SECOND = 3;
 
 export const BLOCK_DURABILITY: Record<BlockCategory, number> = {

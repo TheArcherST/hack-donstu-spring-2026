@@ -15,14 +15,28 @@ interface GameScreenProps {
   onCompleted: (result: CompletionResult) => void;
 }
 
-function getRecentPacketLossClass(packetLoss: number) {
+function getPacketLossClass(packetLoss: number) {
   if (packetLoss < 10) {
-    return "hud-status hud-status-stable";
+    return "game-hud-value game-hud-value-stable";
   }
   if (packetLoss > 30) {
-    return "hud-status hud-status-danger";
+    return "game-hud-value game-hud-value-danger";
   }
-  return "hud-status hud-status-neutral";
+  return "game-hud-value game-hud-value-warn";
+}
+
+function getIncidentClass(incidents: number) {
+  if (incidents === 0) {
+    return "game-hud-value game-hud-value-stable";
+  }
+  if (incidents >= 3) {
+    return "game-hud-value game-hud-value-danger";
+  }
+  return "game-hud-value game-hud-value-warn";
+}
+
+function getTimerClass(timeLeftSeconds: number) {
+  return timeLeftSeconds <= 10 ? "game-timer game-timer-critical" : "game-timer";
 }
 
 export function GameScreen({ sessionId, soundEnabled, onToggleSound, onCompleted }: GameScreenProps) {
@@ -150,25 +164,25 @@ export function GameScreen({ sessionId, soundEnabled, onToggleSound, onCompleted
 
         {snapshot ? (
           <>
-            <div className="game-overlay game-overlay-top-left">
-              <button type="button" className="sound-toggle sound-toggle-floating" onClick={onToggleSound}>
-                {soundEnabled ? "🔊" : "🔈"}
-              </button>
-            </div>
-            <header className="game-overlay game-overlay-top-right hud-inline">
-              <div className="hud-inline-metric">
-                <span>Время</span>
-                <strong>{formatSeconds(snapshot.timeLeftSeconds)}</strong>
+            <header className="game-overlay game-overlay-top game-hud">
+              <div className="game-hud-column game-hud-column-left">
+                <div className="game-hud-list">
+                  <p>
+                    Потери пакетов: <strong className={getPacketLossClass(snapshot.packetLoss)}>{snapshot.packetLoss}%</strong>
+                  </p>
+                  <p>
+                    Инциденты:{" "}
+                    <strong className={getIncidentClass(snapshot.activeIncidents)}>{snapshot.activeIncidents}</strong>
+                  </p>
+                </div>
               </div>
-              <div className="hud-inline-metric hud-inline-metric-status">
-                <span>Loss 5с</span>
-                <strong className={getRecentPacketLossClass(snapshot.recentPacketLoss)}>
-                  {snapshot.recentPacketLoss}%
-                </strong>
+              <div className="game-hud-column game-hud-column-center">
+                <strong className={getTimerClass(snapshot.timeLeftSeconds)}>{formatSeconds(snapshot.timeLeftSeconds)}</strong>
               </div>
-              <div className="hud-inline-metric">
-                <span>Пакеты</span>
-                <strong>{snapshot.deliveredPackets}</strong>
+              <div className="game-hud-column game-hud-column-right">
+                <button type="button" className="sound-toggle sound-toggle-floating" onClick={onToggleSound}>
+                  {soundEnabled ? "🔊" : "🔈"}
+                </button>
               </div>
             </header>
           </>

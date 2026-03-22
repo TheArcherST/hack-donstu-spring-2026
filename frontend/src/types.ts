@@ -1,5 +1,10 @@
 export type ChannelState = "overloaded" | "partial" | "guarded";
 
+export interface PacketLossTimelinePoint {
+  second: number;
+  packet_loss: number;
+}
+
 export interface NetworkMetrics {
   link_quality: number;
   packet_loss: number;
@@ -25,6 +30,7 @@ export interface SessionResultDetails {
   network_metrics: NetworkMetrics;
   stability_window: StabilityWindow;
   attack_summary: AttackSummary;
+  packet_loss_timeline: PacketLossTimelinePoint[];
 }
 
 export interface ParticipantPayload {

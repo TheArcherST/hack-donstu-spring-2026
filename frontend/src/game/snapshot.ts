@@ -29,6 +29,7 @@ export function createGameSnapshot(state: SimulationState): GameSnapshot {
     latencyMs: state.latencyMs,
     deliveredPackets: state.deliveredPackets,
     droppedPackets: state.droppedPackets,
+    activeIncidents: state.cableHitDebuffs.length,
     recentPacketLoss: state.recentPacketLoss,
     stableHoldSeconds: Math.floor(state.stableHoldMs / 1000),
     stableTargetSeconds: STABLE_TARGET_MS / 1000,

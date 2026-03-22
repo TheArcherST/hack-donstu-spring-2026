@@ -55,6 +55,11 @@ interface CableHitDebuff {
   ageMs: number;
 }
 
+export interface PacketLossHistoryPoint {
+  second: number;
+  packetLoss: number;
+}
+
 interface BlockSupportProfile {
   bottomCells: number;
   supportedCells: number;
@@ -91,6 +96,7 @@ export interface SimulationState {
   signalPackets: SignalPacket[];
   deliveredPackets: number;
   droppedPackets: number;
+  packetLossHistory: PacketLossHistoryPoint[];
   packetLoss: number;
   throughput: number;
   latencyMs: number;
@@ -190,6 +196,7 @@ export function createSimulationState(): SimulationState {
     signalPackets: [],
     deliveredPackets: 0,
     droppedPackets: 0,
+    packetLossHistory: [],
     packetLoss: 0,
     throughput: 0,
     latencyMs: 0,
@@ -438,7 +445,8 @@ export function getCableHitDebuffStrength(ageMs: number) {
   }
 
   if (ageMs <= CABLE_HIT_DEBUFF_PEAK_MS) {
-    return 1;
+    const peakProgress = ageMs / Math.max(1, CABLE_HIT_DEBUFF_PEAK_MS);
+    return 1 - peakProgress * 0.45;
   }
 
   const tailProgress = (ageMs - CABLE_HIT_DEBUFF_PEAK_MS) / Math.max(1, CABLE_HIT_DEBUFF_TOTAL_MS - CABLE_HIT_DEBUFF_PEAK_MS);
@@ -532,25 +540,12 @@ export function withMetrics(state: SimulationState): Metrics {
       1,
     );
     const localProtection = clamp(expectedProtection - stress * (0.46 - expectedProtection * 0.12), 0, 1);
-    const baseWeakness = clamp(
-      0.08 +
-        Math.max(0, 0.72 - expectedProtection) * 0.14 +
-        (cover.rearCovered ? 0 : 0.04) +
-        exposedSides * 0.035,
-      0.05,
-      0.34,
-    );
-    const impactWeakness = stress * (0.52 + (1 - expectedProtection) * 0.18);
-    const weakness = clamp(
-      baseWeakness + impactWeakness,
-      0.05,
-      0.92,
-    );
 
-    cumulativeDelay = clamp(cumulativeDelay + weakness * 0.038, 0, 0.76);
-    cumulativeDrop = clamp(cumulativeDrop + weakness * 0.022, 0, 0.82);
-    cumulativeDim = clamp(cumulativeDim + weakness * 0.031, 0, 0.74);
-    cumulativeGlitch = clamp(cumulativeGlitch + weakness * 0.011 + stress * 0.045, 0, 0.48);
+    // Gameplay-affecting transport metrics react only to actual cable-hit stress.
+    cumulativeDelay = clamp(cumulativeDelay + stress * 0.052, 0, 0.76);
+    cumulativeDrop = clamp(cumulativeDrop + stress * 0.032, 0, 0.82);
+    cumulativeDim = clamp(cumulativeDim + stress * 0.036, 0, 0.74);
+    cumulativeGlitch = clamp(cumulativeGlitch + stress * 0.058, 0, 0.48);
 
     const segment: CableSegment = {
       row,
@@ -561,8 +556,8 @@ export function withMetrics(state: SimulationState): Metrics {
       protection: localProtection,
       signalSpeed: clamp(1 - cumulativeDelay, 0.26, 1),
       signalBrightness: clamp(1 - cumulativeDim, 0.24, 1),
-      dropChance: clamp(cumulativeDrop + stress * 0.09, 0.02, 0.88),
-      glitchChance: clamp(cumulativeGlitch, 0.01, 0.66),
+      dropChance: clamp(cumulativeDrop + stress * 0.12, 0, 0.88),
+      glitchChance: clamp(cumulativeGlitch, 0, 0.66),
       state:
         localProtection >= 0.56 && expectedProtection >= 0.48 && stress < 0.22
           ? "stable"

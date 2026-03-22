@@ -1,5 +1,4 @@
 import {
-  FINAL_PACKET_LOSS_WIN_THRESHOLD,
   MATCH_DURATION_SECONDS,
   STABILITY_BONUS_SCORE_PER_SECOND,
   STABLE_LATENCY_THRESHOLD,
@@ -8,7 +7,7 @@ import {
 } from "./constants.ts";
 import { BOARD_COLS, BOARD_ROWS, HIDDEN_TOP_ROWS, getPieceSpawnRow } from "./board.ts";
 import { getCameraLiftRows } from "./camera.ts";
-import { buildCompletionPayload, calculatePacketLoss } from "./result.ts";
+import { buildCompletionPayload, calculatePacketLoss, hasWonByPacketLoss } from "./result.ts";
 import { createGameSnapshot } from "./snapshot.ts";
 import {
   ageCableHitDebuffs,
@@ -27,7 +26,6 @@ import {
   makePiece,
   nextPacketId,
   patchBlock,
-  removeBlock,
   resetSimulationCounters,
   type SimulationState,
   withMetrics,
@@ -98,6 +96,35 @@ function getPacketFrame(progress: number) {
   return Math.min(SIGNAL_FRAME_COUNT - 1, Math.floor(normalized * SIGNAL_FRAME_COUNT));
 }
 
+export function applyAttackImpact(state: SimulationState, row: number, side: "left" | "right") {
+  const targetX = findTargetOnSide(state.grid, row, side);
+
+  if (targetX === undefined) {
+    state.cableHitDebuffs.push({ row, ageMs: 0 });
+    state.systemIntegrity = Math.max(0, state.systemIntegrity - 6.6);
+    return {
+      impact: "cable" as const,
+      targetCol: null,
+    };
+  }
+
+  const target = state.grid[row][targetX];
+  if (!target) {
+    return {
+      impact: "block" as const,
+      targetCol: targetX,
+    };
+  }
+
+  // Container hits are cosmetic only and must not degrade link availability.
+  patchBlock(state.grid, target.blockId, { flash: 1 });
+
+  return {
+    impact: "block" as const,
+    targetCol: targetX,
+  };
+}
+
 export function createGameEngine(config: EngineConfig): EngineControls {
   let state: SimulationState = createSimulationState();
 
@@ -143,6 +170,23 @@ export function createGameEngine(config: EngineConfig): EngineControls {
     state.recentPacketLoss = recentTotal > 0 ? Math.round((recentDrops / recentTotal) * 100) : 0;
   }
 
+  function syncPacketLossHistory() {
+    const second = Math.min(MATCH_DURATION_SECONDS, Math.max(0, Math.floor(state.elapsedMs / 1000)));
+    const totalPacketLoss = calculatePacketLoss(state.deliveredPackets, state.droppedPackets);
+
+    while (state.packetLossHistory.length <= second) {
+      state.packetLossHistory.push({
+        second: state.packetLossHistory.length,
+        packetLoss: totalPacketLoss,
+      });
+    }
+
+    state.packetLossHistory[second] = {
+      second,
+      packetLoss: totalPacketLoss,
+    };
+  }
+
   function finish(status: "won" | "lost", reason: string | null) {
     if (state.status !== "running") {
       return;
@@ -164,8 +208,8 @@ export function createGameEngine(config: EngineConfig): EngineControls {
   }
 
   function spawnPiece() {
-    state.activePiece = state.nextPiece;
-    const spawnCells = getCells(state.activePiece, 0);
+    const candidatePiece = state.nextPiece;
+    const spawnCells = getCells(candidatePiece, 0);
     const bounds = getBounds(spawnCells);
     const width = bounds.maxX - bounds.minX + 1;
 
@@ -177,8 +221,7 @@ export function createGameEngine(config: EngineConfig): EngineControls {
       }
     }
 
-    state.activePiece.rotation = 0;
-    state.nextPiece = makePiece();
+    candidatePiece.rotation = 0;
 
     const minSpawnX = -bounds.minX;
     const maxSpawnX = BOARD_COLS - width - bounds.minX;
@@ -189,16 +232,19 @@ export function createGameEngine(config: EngineConfig): EngineControls {
 
     const preferredSpawnY = getPreferredSpawnY(topSettledRow, spawnCells);
     const spawnRows = Array.from({ length: SPAWN_OVERFLOW_ROWS + 1 }, (_, index) => preferredSpawnY - index);
-    const resolvedSpawn = findSpawnPlacement(state.grid, state.activePiece, spawnRows, spawnColumns);
+    const resolvedSpawn = findSpawnPlacement(state.grid, candidatePiece, spawnRows, spawnColumns);
 
     if (!resolvedSpawn) {
       refreshMetrics();
-      finish("lost", "Новые модули больше не помещаются на опоре, а линия так и не стабилизировалась.");
-      return;
+      state.activePiece = null;
+      return false;
     }
 
-    state.activePiece.x = resolvedSpawn.x;
-    state.activePiece.y = resolvedSpawn.y;
+    candidatePiece.x = resolvedSpawn.x;
+    candidatePiece.y = resolvedSpawn.y;
+    state.activePiece = candidatePiece;
+    state.nextPiece = makePiece();
+    return true;
   }
 
   function isStableChannel() {
@@ -211,7 +257,7 @@ export function createGameEngine(config: EngineConfig): EngineControls {
 
   function finishByTimer() {
     const packetLoss = calculatePacketLoss(state.deliveredPackets, state.droppedPackets);
-    if (packetLoss <= FINAL_PACKET_LOSS_WIN_THRESHOLD) {
+    if (hasWonByPacketLoss(packetLoss)) {
       finish("won", null);
       return;
     }
@@ -408,15 +454,15 @@ export function createGameEngine(config: EngineConfig): EngineControls {
       const row = HIDDEN_TOP_ROWS + Math.floor(Math.random() * attackRows);
       config.onSound("attack");
 
-      const targetX = findTargetOnSide(state.grid, row, side);
+      const impact = applyAttackImpact(state, row, side);
       state.attackProjectiles.push({
         row,
         side,
         age: 0,
-        targetCol: targetX ?? null,
-        impact: targetX === undefined ? "cable" : "block",
+        targetCol: impact.targetCol,
+        impact: impact.impact,
       });
-      if (targetX === undefined) {
+      if (impact.impact === "cable") {
         const textureSrc = DAMAGE_LABEL_TEXTURES[Math.floor(Math.random() * DAMAGE_LABEL_TEXTURES.length)];
         state.damageLabels.push({
           row,
@@ -425,46 +471,10 @@ export function createGameEngine(config: EngineConfig): EngineControls {
           delayMs: ATTACK_PROJECTILE_TRAVEL_MS,
           textureSrc,
         });
-        state.cableHitDebuffs.push({ row, ageMs: 0 });
-        state.systemIntegrity = Math.max(0, state.systemIntegrity - 6.6);
-        continue;
-      }
-
-      const target = state.grid[row][targetX];
-      if (!target) {
-        continue;
-      }
-
-      const members = collectBlockMembers(state.grid, target.blockId);
-      const sample = members[0]?.cell;
-      if (!sample) {
-        continue;
-      }
-
-      patchBlock(state.grid, target.blockId, { flash: 1 });
-      if (sample.fortified > 0) {
-        patchBlock(state.grid, target.blockId, { fortified: sample.fortified - 1, flash: 1 });
-        state.systemIntegrity = Math.max(0, state.systemIntegrity - 0.3);
-        continue;
-      }
-
-      const nextDurability = sample.durability - 1;
-      if (nextDurability <= 0) {
-        removeBlock(state.grid, target.blockId);
-        state.destroyedSegments += 1;
-        state.systemIntegrity = Math.max(0, state.systemIntegrity - (1.4 + members.length * 0.45));
-        config.onSound("break");
-      } else {
-        patchBlock(state.grid, target.blockId, { durability: nextDurability, flash: 1 });
-        state.systemIntegrity = Math.max(0, state.systemIntegrity - (0.9 + members.length * 0.15));
       }
     }
 
     refreshMetrics();
-    if (state.systemIntegrity <= 0) {
-      finish("lost", "Связь рассыпалась: нижние участки перегрузили поток и магистраль ушла в срыв.");
-      return;
-    }
     emitState();
   }
 
@@ -553,6 +563,7 @@ export function createGameEngine(config: EngineConfig): EngineControls {
 
     if (state.elapsedMs >= MATCH_DURATION_SECONDS * 1000) {
       refreshMetrics();
+      syncPacketLossHistory();
       finishByTimer();
       return;
     }
@@ -562,7 +573,11 @@ export function createGameEngine(config: EngineConfig): EngineControls {
     structureGravityAccumulator += delta;
     packetAccumulator += delta;
 
-    if (dropAccumulator >= dropInterval(state.elapsedMs)) {
+    if (!state.activePiece) {
+      spawnPiece();
+    }
+
+    if (state.activePiece && dropAccumulator >= dropInterval(state.elapsedMs)) {
       if (!tryMove(0, 1)) {
         lockPiece();
       }
@@ -589,6 +604,7 @@ export function createGameEngine(config: EngineConfig): EngineControls {
       travellingSignals += 1;
     }
     updateSignalPackets(delta);
+    syncPacketLossHistory();
 
     for (const row of state.grid) {
       for (const cell of row) {
@@ -623,11 +639,6 @@ export function createGameEngine(config: EngineConfig): EngineControls {
     }
 
     refreshMetrics();
-    if (state.systemIntegrity <= 0) {
-      finish("lost", "Связь рассыпалась: поток больше не проходит через магистраль.");
-      return;
-    }
-
     emitState();
     animationFrame = requestAnimationFrame(step);
   }
@@ -647,6 +658,7 @@ export function createGameEngine(config: EngineConfig): EngineControls {
     spawnSignalPacket();
     spawnSignalPacket();
     refreshMetrics();
+    syncPacketLossHistory();
     emitState();
     running = true;
     animationFrame = requestAnimationFrame(step);

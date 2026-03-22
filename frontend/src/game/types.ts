@@ -113,6 +113,7 @@ export interface GameSnapshot {
   latencyMs: number;
   deliveredPackets: number;
   droppedPackets: number;
+  activeIncidents: number;
   recentPacketLoss: number;
   stableHoldSeconds: number;
   stableTargetSeconds: number;

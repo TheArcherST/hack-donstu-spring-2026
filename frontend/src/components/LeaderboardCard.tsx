@@ -5,12 +5,12 @@ interface LeaderboardCardProps {
   title?: string;
 }
 
-export function LeaderboardCard({ items, title = "Рейтинг packet loss" }: LeaderboardCardProps) {
+export function LeaderboardCard({ items, title = "Рейтинг по средним потерям" }: LeaderboardCardProps) {
   return (
     <section className="panel leaderboard-card">
       <div className="panel-header">
         <p className="eyebrow">{title}</p>
-        <h3>Лучшие результаты по потерям</h3>
+        <h3>Лучшие результаты по среднему loss за сессию</h3>
       </div>
       <div className="leaderboard-list">
         {items.length === 0 ? (
@@ -22,7 +22,7 @@ export function LeaderboardCard({ items, title = "Рейтинг packet loss" }:
               <div>
                 <p>{item.full_name}</p>
                 <small>
-                  Loss {item.packet_loss}% · {item.delivered_packets} pkt
+                  Средний loss {item.packet_loss}% · {item.delivered_packets} pkt
                 </small>
               </div>
               <strong>{item.packet_loss}%</strong>

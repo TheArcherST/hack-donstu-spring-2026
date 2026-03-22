@@ -1,6 +1,4 @@
-export const GAME_IMAGE_ASSET_URLS = [
-  "/scene-layers/background_facade.png",
-  "/scene-layers/foreground_curb.png",
+export const GAME_CRITICAL_IMAGE_ASSET_URLS = [
   "/pole-pack/pole.png",
   "/pole-pack/pole-security-effect.png",
   "/pole-pack/pole-signal-spritesheet.png",
@@ -26,4 +24,9 @@ export const GAME_IMAGE_ASSET_URLS = [
   "/texture-pack/docker-rect.png",
   "/texture-pack/ddg_shield.png",
   "/texture-pack/audit_module.png",
+] as const;
+
+export const GAME_DEFERRED_IMAGE_ASSET_URLS = [
+  "/scene-layers/background_facade.png",
+  "/scene-layers/foreground_curb.png",
 ] as const;

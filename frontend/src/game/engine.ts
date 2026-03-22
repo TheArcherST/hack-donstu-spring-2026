@@ -41,6 +41,7 @@ import type {
 } from "./types.ts";
 
 interface EngineConfig {
+  snapshotIntervalMs?: number;
   onStateChange: (snapshot: GameSnapshot) => void;
   onFinish: (payload: FinishPayload) => void;
   onSound: (cue: SoundCue) => void;
@@ -52,6 +53,7 @@ const MAX_TRAVELLING_SIGNALS = 4;
 const SIGNAL_TRAVEL_SPEED_MULTIPLIER = 1.5;
 const STRUCTURE_GRAVITY_INTERVAL_MS = 140;
 const ATTACK_PROJECTILE_TRAVEL_MS = 680;
+const DAMAGE_LABEL_DELAY_MS = ATTACK_PROJECTILE_TRAVEL_MS * 2;
 const DAMAGE_LABEL_VISIBLE_MS = 1_500;
 const SPAWN_OVERFLOW_ROWS = 5;
 const SPAWN_SCREEN_ANCHOR_ROW = HIDDEN_TOP_ROWS - 1;
@@ -155,8 +157,14 @@ export function createGameEngine(config: EngineConfig): EngineControls {
   let stabilityBonusAccumulator = 0;
   let recentDeliveryTimes: number[] = [];
   let recentDropTimes: number[] = [];
+  let lastSnapshotEmitAt = Number.NEGATIVE_INFINITY;
+  const snapshotIntervalMs = Math.max(16.67, config.snapshotIntervalMs ?? 16.67);
 
-  function emitState() {
+  function emitState(force = false) {
+    if (!force && state.elapsedMs - lastSnapshotEmitAt < snapshotIntervalMs) {
+      return;
+    }
+    lastSnapshotEmitAt = state.elapsedMs;
     config.onStateChange(createGameSnapshot(state));
   }
 
@@ -220,7 +228,7 @@ export function createGameEngine(config: EngineConfig): EngineControls {
       config.onSound("lose");
     }
 
-    emitState();
+    emitState(true);
     config.onFinish(buildCompletionPayload(state));
   }
 
@@ -357,7 +365,7 @@ export function createGameEngine(config: EngineConfig): EngineControls {
     if (landedCells.length === 0) {
       state.activePiece = null;
       spawnPiece();
-      emitState();
+      emitState(true);
       return;
     }
 
@@ -396,7 +404,7 @@ export function createGameEngine(config: EngineConfig): EngineControls {
     state.activePiece = null;
     refreshMetrics();
     spawnPiece();
-    emitState();
+    emitState(true);
   }
 
   function tryMove(deltaX: number, deltaY: number) {
@@ -409,7 +417,7 @@ export function createGameEngine(config: EngineConfig): EngineControls {
     }
     activePiece.x += deltaX;
     activePiece.y += deltaY;
-    emitState();
+    emitState(true);
     return true;
   }
 
@@ -425,7 +433,7 @@ export function createGameEngine(config: EngineConfig): EngineControls {
         activePiece.rotation = nextRotation;
         activePiece.x += kick;
         activePiece.textureRotation += Math.PI / 2;
-        emitState();
+        emitState(true);
         return;
       }
     }
@@ -485,14 +493,14 @@ export function createGameEngine(config: EngineConfig): EngineControls {
           row,
           side,
           age: 0,
-          delayMs: ATTACK_PROJECTILE_TRAVEL_MS,
+          delayMs: DAMAGE_LABEL_DELAY_MS,
           textureSrc,
         });
       }
     }
 
     refreshMetrics();
-    emitState();
+    emitState(true);
   }
 
   function spawnSignalPacket() {
@@ -671,12 +679,13 @@ export function createGameEngine(config: EngineConfig): EngineControls {
     stabilityBonusAccumulator = 0;
     recentDeliveryTimes = [];
     recentDropTimes = [];
+    lastSnapshotEmitAt = Number.NEGATIVE_INFINITY;
     spawnPiece();
     spawnSignalPacket();
     spawnSignalPacket();
     refreshMetrics();
     syncPacketLossHistory();
-    emitState();
+    emitState(true);
     running = true;
     animationFrame = requestAnimationFrame(step);
   }

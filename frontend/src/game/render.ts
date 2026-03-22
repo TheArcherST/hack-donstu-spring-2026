@@ -43,6 +43,24 @@ interface PoleSecurityMaskSurface {
   height: number;
 }
 
+interface StaticLayerSurface {
+  canvas: HTMLCanvasElement;
+  ctx: CanvasRenderingContext2D;
+  width: number;
+  height: number;
+  key: string;
+}
+
+interface SceneStaticCache {
+  background: StaticLayerSurface | null;
+  foreground: StaticLayerSurface | null;
+}
+
+export interface RenderOptions {
+  reducedEffects?: boolean;
+  showDecorativeAssets?: boolean;
+}
+
 const DAMAGE_TEXTURES = ["/texture-pack/damage_overlay_1.png", "/texture-pack/damage_overlay_2.png"];
 const SQUARE_CONTAINER_SPRITESHEET = "/texture-pack/container_2-2_default_spritesheet.png";
 const RECTANGLE_CONTAINER_SPRITESHEET = "/texture-pack/container_3-2_default_spritesheet.png";
@@ -58,6 +76,7 @@ const POLE_SECURITY_STEP_MS = 32;
 const imageCache = new Map<string, HTMLImageElement>();
 const poleSecurityTrailCache = new WeakMap<HTMLCanvasElement, PoleSecurityTrailState>();
 const poleSecurityMaskCache = new WeakMap<HTMLCanvasElement, PoleSecurityMaskSurface>();
+const staticSceneCache = new WeakMap<HTMLCanvasElement, SceneStaticCache>();
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -80,6 +99,68 @@ function getTexture(src: string) {
     imageCache.set(src, image);
   }
   return image;
+}
+
+function getSceneStaticCache(canvas: HTMLCanvasElement) {
+  const cached = staticSceneCache.get(canvas);
+  if (cached) {
+    return cached;
+  }
+
+  const nextCache: SceneStaticCache = {
+    background: null,
+    foreground: null,
+  };
+  staticSceneCache.set(canvas, nextCache);
+  return nextCache;
+}
+
+function createStaticLayerSurface(width: number, height: number, key: string) {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(width));
+  canvas.height = Math.max(1, Math.round(height));
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    return null;
+  }
+
+  return {
+    canvas,
+    ctx,
+    width: canvas.width,
+    height: canvas.height,
+    key,
+  };
+}
+
+function drawCachedStaticLayer(
+  targetCtx: CanvasRenderingContext2D,
+  layer: keyof SceneStaticCache,
+  key: string,
+  width: number,
+  height: number,
+  renderToSurface: (ctx: CanvasRenderingContext2D) => void,
+) {
+  const cache = getSceneStaticCache(targetCtx.canvas);
+  const nextWidth = Math.max(1, Math.round(width));
+  const nextHeight = Math.max(1, Math.round(height));
+  let surface = cache[layer];
+
+  if (!surface || surface.key !== key || surface.width !== nextWidth || surface.height !== nextHeight) {
+    surface = createStaticLayerSurface(nextWidth, nextHeight, key);
+    if (!surface) {
+      renderToSurface(targetCtx);
+      return;
+    }
+    renderToSurface(surface.ctx);
+    cache[layer] = surface;
+  }
+
+  targetCtx.drawImage(surface.canvas, 0, 0, width, height);
 }
 
 function waitForTexture(image: HTMLImageElement, src: string) {
@@ -420,7 +501,7 @@ function drawMetalSurface(
   ctx.restore();
 }
 
-function drawBackground(ctx: CanvasRenderingContext2D, snapshot: GameSnapshot, layout: SceneLayout) {
+function drawBackgroundBase(ctx: CanvasRenderingContext2D, layout: SceneLayout, options: RenderOptions) {
   const sky = ctx.createLinearGradient(0, 0, 0, layout.height);
   sky.addColorStop(0, "#d8ebff");
   sky.addColorStop(0.38, "#c3dffc");
@@ -429,15 +510,11 @@ function drawBackground(ctx: CanvasRenderingContext2D, snapshot: GameSnapshot, l
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, layout.width, layout.height);
 
-  const halo = ctx.createRadialGradient(layout.poleAxisX, layout.safeTop * 0.8, 18, layout.poleAxisX, layout.safeTop * 0.8, layout.width * 0.32);
-  halo.addColorStop(0, snapshot.channelState === "guarded" ? "rgba(119,223,255,0.52)" : snapshot.channelState === "partial" ? "rgba(255,210,133,0.4)" : "rgba(255,122,122,0.34)");
-  halo.addColorStop(1, "rgba(255,255,255,0)");
-  ctx.fillStyle = halo;
-  ctx.fillRect(0, 0, layout.width, layout.height);
-
-  const facade = getTexture(SCENE_ASSETS.background);
-  if (facade && facade.complete && facade.naturalWidth > 0) {
-    drawImageCoverInRect(ctx, facade, { x: 0, y: 0, width: layout.width, height: layout.height }, 0.98, 0.5, 1);
+  if (options.showDecorativeAssets) {
+    const facade = getTexture(SCENE_ASSETS.background);
+    if (facade && facade.complete && facade.naturalWidth > 0) {
+      drawImageCoverInRect(ctx, facade, { x: 0, y: 0, width: layout.width, height: layout.height }, 0.98, 0.5, 1);
+    }
   }
 
   ctx.save();
@@ -451,6 +528,59 @@ function drawBackground(ctx: CanvasRenderingContext2D, snapshot: GameSnapshot, l
     ctx.stroke();
   }
   ctx.restore();
+
+  drawSlotGrid(ctx, layout);
+}
+
+function drawChannelHalo(ctx: CanvasRenderingContext2D, snapshot: GameSnapshot, layout: SceneLayout) {
+  const halo = ctx.createRadialGradient(
+    layout.poleAxisX,
+    layout.safeTop * 0.8,
+    18,
+    layout.poleAxisX,
+    layout.safeTop * 0.8,
+    layout.width * 0.32,
+  );
+  halo.addColorStop(
+    0,
+    snapshot.channelState === "guarded"
+      ? "rgba(119,223,255,0.52)"
+      : snapshot.channelState === "partial"
+        ? "rgba(255,210,133,0.4)"
+        : "rgba(255,122,122,0.34)",
+  );
+  halo.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = halo;
+  ctx.fillRect(0, 0, layout.width, layout.height);
+}
+
+function drawBackground(ctx: CanvasRenderingContext2D, snapshot: GameSnapshot, layout: SceneLayout, options: RenderOptions) {
+  const facade = options.showDecorativeAssets ? getTexture(SCENE_ASSETS.background) : null;
+  const backgroundKey = `${layout.width}x${layout.height}:${options.showDecorativeAssets ? (facade?.complete && facade.naturalWidth > 0 ? "ready" : "pending") : "off"}`;
+  drawCachedStaticLayer(ctx, "background", backgroundKey, layout.width, layout.height, (surfaceCtx) => {
+    drawBackgroundBase(surfaceCtx, layout, options);
+  });
+  drawChannelHalo(ctx, snapshot, layout);
+}
+
+function drawForeground(ctx: CanvasRenderingContext2D, layout: SceneLayout, options: RenderOptions) {
+  const curb = options.showDecorativeAssets ? getTexture(SCENE_ASSETS.foreground) : null;
+  const foregroundKey = `${layout.width}x${layout.height}:${options.showDecorativeAssets ? (curb?.complete && curb.naturalWidth > 0 ? "ready" : "pending") : "off"}`;
+  drawCachedStaticLayer(ctx, "foreground", foregroundKey, layout.width, layout.height, (surfaceCtx) => {
+    if (!options.showDecorativeAssets || !curb || !curb.complete || curb.naturalWidth === 0) {
+      return;
+    }
+    const aspectHeight = layout.width * (curb.naturalHeight / curb.naturalWidth);
+    const height = Math.max(layout.curbHeight, aspectHeight);
+    drawImageCoverInRect(
+      surfaceCtx,
+      curb,
+      { x: 0, y: layout.foregroundTopY, width: layout.width, height },
+      0.98,
+      0.5,
+      1,
+    );
+  });
 }
 
 function drawPoleBackdrop(ctx: CanvasRenderingContext2D, layout: SceneLayout) {
@@ -641,6 +771,36 @@ function drawPoleSecurityEffect(
   ctx.restore();
 }
 
+function drawReducedPoleSecurityEffect(
+  ctx: CanvasRenderingContext2D,
+  layout: SceneLayout,
+  segmentAlphas: number[],
+) {
+  if (segmentAlphas.length === 0) {
+    return;
+  }
+
+  const poleRect = getPoleRect(layout);
+  const gradient = ctx.createLinearGradient(0, layout.gridTop, 0, layout.boardBottom);
+
+  for (let index = 0; index < segmentAlphas.length; index += 1) {
+    const offset = clamp((layout.rowCenters[index] - layout.gridTop) / Math.max(1, layout.boardBottom - layout.gridTop), 0, 1);
+    gradient.addColorStop(offset, `rgba(110, 235, 255, ${clamp(segmentAlphas[index] * 0.26, 0.04, 0.26)})`);
+  }
+
+  ctx.save();
+  ctx.fillStyle = gradient;
+  ctx.fillRect(layout.poleAxisX - layout.poleWidth * 0.14, layout.gridTop, layout.poleWidth * 0.28, layout.boardBottom - layout.gridTop);
+  ctx.globalAlpha = 0.2;
+  ctx.strokeStyle = "rgba(168, 244, 255, 0.8)";
+  ctx.lineWidth = Math.max(1, layout.cellSize * 0.045);
+  ctx.beginPath();
+  ctx.moveTo(layout.poleAxisX, poleRect.y);
+  ctx.lineTo(layout.poleAxisX, poleRect.y + poleRect.height);
+  ctx.stroke();
+  ctx.restore();
+}
+
 function getPacketFrame(packet: SignalPacket) {
   if (packet.state === "dropping" && packet.frozenFrame !== null) {
     return packet.frozenFrame;
@@ -649,22 +809,24 @@ function getPacketFrame(packet: SignalPacket) {
   return Math.min(SIGNAL_SPRITE_FRAME_COUNT - 1, Math.floor(normalized * SIGNAL_SPRITE_FRAME_COUNT));
 }
 
-function drawSignalPackets(ctx: CanvasRenderingContext2D, snapshot: GameSnapshot, layout: SceneLayout) {
+function drawSignalPackets(ctx: CanvasRenderingContext2D, snapshot: GameSnapshot, layout: SceneLayout, options: RenderOptions) {
   const signalSheet = getTexture(SCENE_ASSETS.poleSignal.src);
   if (!signalSheet || !signalSheet.complete || signalSheet.naturalWidth === 0) {
     return;
   }
 
   const poleRect = getPoleRect(layout);
-  const corridor = ctx.createLinearGradient(0, poleRect.y, 0, poleRect.y + poleRect.height);
-  corridor.addColorStop(0, "rgba(255,255,255,0)");
-  corridor.addColorStop(0.25, snapshot.channelState === "guarded" ? "rgba(110, 235, 255, 0.12)" : snapshot.channelState === "partial" ? "rgba(255, 213, 130, 0.1)" : "rgba(255, 118, 118, 0.12)");
-  corridor.addColorStop(1, "rgba(255,255,255,0)");
+  if (!options.reducedEffects) {
+    const corridor = ctx.createLinearGradient(0, poleRect.y, 0, poleRect.y + poleRect.height);
+    corridor.addColorStop(0, "rgba(255,255,255,0)");
+    corridor.addColorStop(0.25, snapshot.channelState === "guarded" ? "rgba(110, 235, 255, 0.12)" : snapshot.channelState === "partial" ? "rgba(255, 213, 130, 0.1)" : "rgba(255, 118, 118, 0.12)");
+    corridor.addColorStop(1, "rgba(255,255,255,0)");
 
-  ctx.save();
-  ctx.fillStyle = corridor;
-  ctx.fillRect(layout.poleAxisX - layout.poleWidth * 0.22, layout.gridTop, layout.poleWidth * 0.44, layout.boardBottom - layout.gridTop);
-  ctx.restore();
+    ctx.save();
+    ctx.fillStyle = corridor;
+    ctx.fillRect(layout.poleAxisX - layout.poleWidth * 0.22, layout.gridTop, layout.poleWidth * 0.44, layout.boardBottom - layout.gridTop);
+    ctx.restore();
+  }
 
   const frameWidth = signalSheet.naturalWidth / SIGNAL_SPRITE_FRAME_COUNT;
   const frameHeight = signalSheet.naturalHeight;
@@ -677,7 +839,7 @@ function drawSignalPackets(ctx: CanvasRenderingContext2D, snapshot: GameSnapshot
         : clamp(0.38 + packet.brightness * 0.46 - packet.corrupted * 0.08, 0.34, 0.92);
 
     ctx.save();
-    ctx.globalCompositeOperation = "lighter";
+    ctx.globalCompositeOperation = options.reducedEffects ? "source-over" : "lighter";
     drawImageContainInRect(ctx, signalSheet, poleRect, alpha, 0.5, 0.5, {
       x: Math.round(frameIndex * frameWidth),
       y: 0,
@@ -768,7 +930,12 @@ function drawAttackProjectiles(ctx: CanvasRenderingContext2D, snapshot: GameSnap
   }
 }
 
-function drawDamageLabels(ctx: CanvasRenderingContext2D, snapshot: GameSnapshot, layout: SceneLayout) {
+function drawDamageLabels(
+  ctx: CanvasRenderingContext2D,
+  snapshot: GameSnapshot,
+  layout: SceneLayout,
+  options: RenderOptions,
+) {
   for (const label of snapshot.damageLabels) {
     const visibleAge = label.age - label.delayMs;
     if (visibleAge < 0) {
@@ -790,8 +957,10 @@ function drawDamageLabels(ctx: CanvasRenderingContext2D, snapshot: GameSnapshot,
 
     ctx.save();
     ctx.globalAlpha = clamp(alpha, 0, 1);
-    ctx.shadowBlur = layout.cellSize * 0.5;
-    ctx.shadowColor = "rgba(255, 98, 134, 0.45)";
+    if (!options.reducedEffects) {
+      ctx.shadowBlur = layout.cellSize * 0.5;
+      ctx.shadowColor = "rgba(255, 98, 134, 0.45)";
+    }
     drawImageContainInRect(ctx, image, { x, y, width: size, height: size });
     ctx.restore();
   }
@@ -802,6 +971,7 @@ function drawBlockGroup(
   layout: SceneLayout,
   cell: Cell,
   cells: RenderPoint[],
+  options: RenderOptions,
   active = false,
 ) {
   if (cells.length === 0) {
@@ -842,7 +1012,7 @@ function drawBlockGroup(
     drawBlockTexture(ctx, baseTexture, path, bounds.minX, bounds.minY, bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
   } else {
     ctx.save();
-    ctx.shadowBlur = active ? 22 : 12;
+    ctx.shadowBlur = options.reducedEffects ? 0 : active ? 22 : 12;
     ctx.shadowColor = active ? "rgba(255,255,255,0.42)" : cell.category === "guard" || cell.audited ? "rgba(26, 144, 255, 0.34)" : "rgba(12, 17, 24, 0.38)";
     ctx.shadowOffsetY = layout.cellSize * 0.12;
     ctx.fillStyle = "rgba(6, 10, 16, 0.28)";
@@ -883,25 +1053,9 @@ function drawAuditBursts(ctx: CanvasRenderingContext2D, snapshot: GameSnapshot, 
   });
 }
 
-function drawForeground(ctx: CanvasRenderingContext2D, layout: SceneLayout) {
-  const curb = getTexture(SCENE_ASSETS.foreground);
-  if (curb && curb.complete && curb.naturalWidth > 0) {
-    const aspectHeight = layout.width * (curb.naturalHeight / curb.naturalWidth);
-    const height = Math.max(layout.curbHeight, aspectHeight);
-    drawImageCoverInRect(
-      ctx,
-      curb,
-      { x: 0, y: layout.foregroundTopY, width: layout.width, height },
-      0.98,
-      0.5,
-      1,
-    );
-  }
-}
-
-function drawBlocksLayer(ctx: CanvasRenderingContext2D, snapshot: GameSnapshot, layout: SceneLayout) {
+function drawBlocksLayer(ctx: CanvasRenderingContext2D, snapshot: GameSnapshot, layout: SceneLayout, options: RenderOptions) {
   for (const block of snapshot.blocks ?? collectBlocksFromGrid(snapshot)) {
-    drawBlockGroup(ctx, layout, block.cell, block.cells);
+    drawBlockGroup(ctx, layout, block.cell, block.cells, options);
   }
 
   if (!snapshot.activePiece) {
@@ -929,6 +1083,7 @@ function drawBlocksLayer(ctx: CanvasRenderingContext2D, snapshot: GameSnapshot, 
       collapseProgress: 0,
     },
     getPieceCells(snapshot.activePiece),
+    options,
     true,
   );
 }
@@ -938,17 +1093,22 @@ function drawPoleLayer(
   snapshot: GameSnapshot,
   layout: SceneLayout,
   deltaMs: number,
+  options: RenderOptions,
 ) {
   const trailState = getPoleSecurityTrailState(ctx.canvas, snapshot.cableSegments.length);
   const segmentAlphas = updatePoleSecurityTrail(trailState, snapshot.cableSegments, snapshot, deltaMs);
   drawPoleForeground(ctx, layout);
+  if (options.reducedEffects) {
+    drawReducedPoleSecurityEffect(ctx, layout, segmentAlphas);
+    return;
+  }
   drawPoleSecurityEffect(ctx, layout, segmentAlphas);
 }
 
-function drawEffectsLayer(ctx: CanvasRenderingContext2D, snapshot: GameSnapshot, layout: SceneLayout) {
-  drawSignalPackets(ctx, snapshot, layout);
+function drawEffectsLayer(ctx: CanvasRenderingContext2D, snapshot: GameSnapshot, layout: SceneLayout, options: RenderOptions) {
+  drawSignalPackets(ctx, snapshot, layout, options);
   drawAttackProjectiles(ctx, snapshot, layout);
-  drawDamageLabels(ctx, snapshot, layout);
+  drawDamageLabels(ctx, snapshot, layout, options);
   drawAuditBursts(ctx, snapshot, layout);
 }
 
@@ -958,24 +1118,24 @@ function renderSceneLayer(
   snapshot: GameSnapshot,
   layout: SceneLayout,
   deltaMs: number,
+  options: RenderOptions,
 ) {
   switch (layer) {
     case "background":
-      drawBackground(ctx, snapshot, layout);
+      drawBackground(ctx, snapshot, layout, options);
       drawPoleBackdrop(ctx, layout);
-      drawSlotGrid(ctx, layout);
       return;
     case "foreground":
-      drawForeground(ctx, layout);
+      drawForeground(ctx, layout, options);
       return;
     case "blocks":
-      drawBlocksLayer(ctx, snapshot, layout);
+      drawBlocksLayer(ctx, snapshot, layout, options);
       return;
     case "pole":
-      drawPoleLayer(ctx, snapshot, layout, deltaMs);
+      drawPoleLayer(ctx, snapshot, layout, deltaMs, options);
       return;
     case "effects":
-      drawEffectsLayer(ctx, snapshot, layout);
+      drawEffectsLayer(ctx, snapshot, layout, options);
       return;
   }
 }
@@ -986,6 +1146,7 @@ export function renderSnapshot(
   layout: SceneLayout,
   cameraLift = 0,
   deltaMs = 16.67,
+  options: RenderOptions = {},
 ) {
   ctx.clearRect(0, 0, layout.width, layout.height);
   ctx.save();
@@ -995,7 +1156,7 @@ export function renderSnapshot(
   ctx.translate(0, cameraLift);
 
   for (const layer of SCENE_LAYER_ORDER) {
-    renderSceneLayer(layer, ctx, snapshot, layout, deltaMs);
+    renderSceneLayer(layer, ctx, snapshot, layout, deltaMs, options);
   }
 
   ctx.restore();

@@ -11,10 +11,11 @@ interface UseGameSessionOptions {
   sessionId: number;
   soundEnabled: boolean;
   enabled: boolean;
+  snapshotIntervalMs?: number;
   onCompleted: (result: CompletionResult) => void;
 }
 
-export function useGameSession({ sessionId, soundEnabled, enabled, onCompleted }: UseGameSessionOptions) {
+export function useGameSession({ sessionId, soundEnabled, enabled, snapshotIntervalMs, onCompleted }: UseGameSessionOptions) {
   const controlsRef = useRef<EngineControls | null>(null);
   const gestureRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const onCompletedRef = useRef(onCompleted);
@@ -41,6 +42,7 @@ export function useGameSession({ sessionId, soundEnabled, enabled, onCompleted }
     }
 
     const engine = createGameEngine({
+      snapshotIntervalMs,
       onStateChange: (nextSnapshot) => {
         frameSnapshotRef.current = nextSnapshot;
 

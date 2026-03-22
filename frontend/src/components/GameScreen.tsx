@@ -185,6 +185,11 @@ export function GameScreen({ sessionId, soundEnabled, onToggleSound, onCompleted
       return;
     }
 
+    if (GAME_DEFERRED_IMAGE_ASSET_URLS.length === 0) {
+      setDecorativeAssetsReady(true);
+      return;
+    }
+
     let cancelled = false;
     let timeoutId = 0;
 

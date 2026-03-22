@@ -18,7 +18,7 @@ export function BriefingScreen({ participant, onStart }: BriefingScreenProps) {
               <p>Ограждай линию связи от DDoS-атак с боковых сторон.</p>
               <p>Пока не произошло инцедентов безопасности, сеть в пордяке.</p>
               <p>Следи за устойчивостью конструкции.</p>
-              <p>Твоя цель: не допустить потерю более 30\% пакетов.</p>
+              <p>Твоя цель: не допустить потерю более 30% пакетов.</p>
             </div>
             <button type="button" className="primary-button" onClick={onStart}>
               Начать защиту

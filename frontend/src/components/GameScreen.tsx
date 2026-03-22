@@ -43,14 +43,12 @@ export function GameScreen({ sessionId, soundEnabled, onToggleSound, onCompleted
   const stageRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [viewport, setViewport] = useState({ width: 390, height: 844, offsetX: 0, offsetY: 0, dpr: 1 });
-  const { snapshot, error, saving, stageHandlers } = useGameSession({ sessionId, soundEnabled, onCompleted });
-  const snapshotRef = useRef(snapshot);
+  const { frameSnapshotRef, hudSnapshot, error, saving, stageHandlers } = useGameSession({ sessionId, soundEnabled, onCompleted });
   const viewportRef = useRef({ width: 390, height: 844, offsetX: 0, offsetY: 0, dpr: 1 });
   const cameraLiftRef = useRef(0);
   const renderFrameRef = useRef(0);
   const lastRenderTimeRef = useRef(0);
 
-  snapshotRef.current = snapshot;
   viewportRef.current = viewport;
 
   useEffect(() => {
@@ -122,17 +120,17 @@ export function GameScreen({ sessionId, soundEnabled, onToggleSound, onCompleted
 
     const renderFrame = (timestamp: number) => {
       const currentViewport = viewportRef.current;
-      const currentSnapshot = snapshotRef.current;
+      const currentSnapshot = frameSnapshotRef.current;
       const deltaMs = lastRenderTimeRef.current === 0 ? 16.67 : timestamp - lastRenderTimeRef.current;
       lastRenderTimeRef.current = timestamp;
+      const layout = getSceneLayout(currentViewport.width, currentViewport.height);
 
       context.setTransform(currentViewport.dpr, 0, 0, currentViewport.dpr, 0, 0);
 
       if (currentSnapshot) {
-        const layout = getSceneLayout(currentViewport.width, currentViewport.height);
         const targetLift = getCameraLiftTarget(layout, currentSnapshot);
         cameraLiftRef.current = advanceCameraLift(cameraLiftRef.current, targetLift, deltaMs);
-        renderSnapshot(context, currentSnapshot, currentViewport.width, currentViewport.height, cameraLiftRef.current, deltaMs);
+        renderSnapshot(context, currentSnapshot, layout, cameraLiftRef.current, deltaMs);
       } else {
         cameraLiftRef.current = 0;
         context.clearRect(0, 0, currentViewport.width, currentViewport.height);
@@ -162,22 +160,21 @@ export function GameScreen({ sessionId, soundEnabled, onToggleSound, onCompleted
       >
         <canvas ref={canvasRef} className="game-canvas" width={viewport.width} height={viewport.height} />
 
-        {snapshot ? (
+        {hudSnapshot ? (
           <>
             <header className="game-overlay game-overlay-top game-hud">
               <div className="game-hud-column game-hud-column-left">
                 <div className="game-hud-list">
                   <p>
-                    Потери пакетов: <strong className={getPacketLossClass(snapshot.packetLoss)}>{snapshot.packetLoss}%</strong>
+                    Потери пакетов: <strong className={getPacketLossClass(hudSnapshot.packetLoss)}>{hudSnapshot.packetLoss}%</strong>
                   </p>
                   <p>
-                    Инциденты:{" "}
-                    <strong className={getIncidentClass(snapshot.activeIncidents)}>{snapshot.activeIncidents}</strong>
+                    Инциденты: <strong className={getIncidentClass(hudSnapshot.activeIncidents)}>{hudSnapshot.activeIncidents}</strong>
                   </p>
                 </div>
               </div>
               <div className="game-hud-column game-hud-column-center">
-                <strong className={getTimerClass(snapshot.timeLeftSeconds)}>{formatSeconds(snapshot.timeLeftSeconds)}</strong>
+                <strong className={getTimerClass(hudSnapshot.timeLeftSeconds)}>{formatSeconds(hudSnapshot.timeLeftSeconds)}</strong>
               </div>
               <div className="game-hud-column game-hud-column-right">
                 <button type="button" className="sound-toggle sound-toggle-floating" onClick={onToggleSound}>

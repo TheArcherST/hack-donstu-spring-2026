@@ -50,6 +50,8 @@ interface BlockMember {
   y: number;
 }
 
+type BlockMembersIndex = Map<number, BlockMember[]>;
+
 interface CableHitDebuff {
   row: number;
   ageMs: number;
@@ -257,27 +259,58 @@ export function collectBlockMembers(grid: Array<Array<Cell | null>>, blockId: nu
   return members;
 }
 
-export function patchBlock(grid: Array<Array<Cell | null>>, blockId: number, patch: Partial<Cell>) {
-  for (const member of collectBlockMembers(grid, blockId)) {
+function buildBlockMembersIndex(grid: Array<Array<Cell | null>>) {
+  const blockIndex: BlockMembersIndex = new Map();
+
+  for (let y = 0; y < BOARD_ROWS; y += 1) {
+    for (let x = 0; x < BOARD_COLS; x += 1) {
+      const cell = grid[y][x];
+      if (!cell) {
+        continue;
+      }
+
+      const members = blockIndex.get(cell.blockId);
+      if (members) {
+        members.push({ cell, x, y });
+      } else {
+        blockIndex.set(cell.blockId, [{ cell, x, y }]);
+      }
+    }
+  }
+
+  return blockIndex;
+}
+
+function patchBlockMembers(members: BlockMember[], patch: Partial<Cell>) {
+  for (const member of members) {
     Object.assign(member.cell, patch);
   }
 }
 
-export function removeBlock(grid: Array<Array<Cell | null>>, blockId: number) {
-  for (const member of collectBlockMembers(grid, blockId)) {
+export function patchBlock(grid: Array<Array<Cell | null>>, blockId: number, patch: Partial<Cell>) {
+  patchBlockMembers(collectBlockMembers(grid, blockId), patch);
+}
+
+function removeBlockMembers(grid: Array<Array<Cell | null>>, members: BlockMember[]) {
+  for (const member of members) {
     grid[member.y][member.x] = null;
   }
 }
 
-export function canShiftBlockDown(
+export function removeBlock(grid: Array<Array<Cell | null>>, blockId: number) {
+  removeBlockMembers(grid, collectBlockMembers(grid, blockId));
+}
+
+function canShiftBlockDownMembers(
   grid: Array<Array<Cell | null>>,
-  blockId: number,
+  members: BlockMember[],
   blockedCells = new Set<string>(),
 ) {
-  const members = collectBlockMembers(grid, blockId);
   if (members.length === 0) {
     return false;
   }
+
+  const blockId = members[0].cell.blockId;
 
   return members.every(({ x, y }) => {
     const nextY = y + 1;
@@ -293,8 +326,15 @@ export function canShiftBlockDown(
   });
 }
 
-export function shiftBlockDown(grid: Array<Array<Cell | null>>, blockId: number) {
-  const members = collectBlockMembers(grid, blockId);
+export function canShiftBlockDown(
+  grid: Array<Array<Cell | null>>,
+  blockId: number,
+  blockedCells = new Set<string>(),
+) {
+  return canShiftBlockDownMembers(grid, collectBlockMembers(grid, blockId), blockedCells);
+}
+
+function shiftBlockDownMembers(grid: Array<Array<Cell | null>>, members: BlockMember[]) {
   if (members.length === 0) {
     return false;
   }
@@ -303,9 +343,14 @@ export function shiftBlockDown(grid: Array<Array<Cell | null>>, blockId: number)
     grid[member.y][member.x] = null;
   }
   for (const member of members) {
-    grid[member.y + 1][member.x] = member.cell;
+    member.y += 1;
+    grid[member.y][member.x] = member.cell;
   }
   return true;
+}
+
+export function shiftBlockDown(grid: Array<Array<Cell | null>>, blockId: number) {
+  return shiftBlockDownMembers(grid, collectBlockMembers(grid, blockId));
 }
 
 function analyzeBlockSupport(grid: Array<Array<Cell | null>>, members: BlockMember[]): BlockSupportProfile {
@@ -351,27 +396,23 @@ export function applyStructureGravityStep(
   blockedCells = new Set<string>(),
   stepMs = 140,
 ) {
-  const blockDepths = new Map<number, number>();
-  for (let y = 0; y < BOARD_ROWS; y += 1) {
-    for (let x = 0; x < BOARD_COLS; x += 1) {
-      const cell = grid[y][x];
-      if (cell) {
-        blockDepths.set(cell.blockId, y);
-      }
-    }
-  }
+  const blockIndex = buildBlockMembersIndex(grid);
 
   const result: StructureStepResult = {
     movedBlocks: 0,
     collapsedBlocks: 0,
     collapsedCells: 0,
   };
-  const orderedBlockIds = [...blockDepths.entries()]
-    .sort((left, right) => right[1] - left[1])
-    .map(([blockId]) => blockId);
+  const orderedBlockIds = [...blockIndex.entries()]
+    .map(([blockId, members]) => ({
+      blockId,
+      maxY: members.reduce((currentMax, member) => Math.max(currentMax, member.y), -Infinity),
+    }))
+    .sort((left, right) => right.maxY - left.maxY)
+    .map(({ blockId }) => blockId);
 
   for (const blockId of orderedBlockIds) {
-    const members = collectBlockMembers(grid, blockId);
+    const members = blockIndex.get(blockId) ?? [];
     const sample = members[0]?.cell;
     if (!sample) {
       continue;
@@ -385,9 +426,9 @@ export function applyStructureGravityStep(
         support.bottomCells >= 2 &&
         support.supportedRatio <= 0.5);
 
-    if (!shouldCollapse && canShiftBlockDown(grid, blockId, blockedCells) && support.supportedCells === 0) {
-      if (shiftBlockDown(grid, blockId)) {
-        patchBlock(grid, blockId, {
+    if (!shouldCollapse && canShiftBlockDownMembers(grid, members, blockedCells) && support.supportedCells === 0) {
+      if (shiftBlockDownMembers(grid, members)) {
+        patchBlockMembers(members, {
           fallProgress: 1,
           tiltDirection: 0,
           tiltProgress: 0,
@@ -399,7 +440,7 @@ export function applyStructureGravityStep(
     }
 
     if (!shouldCollapse) {
-      patchBlock(grid, blockId, {
+      patchBlockMembers(members, {
         fallProgress: 0,
         tiltDirection: 0,
         tiltProgress: 0,
@@ -414,14 +455,15 @@ export function applyStructureGravityStep(
       : support.tiltDirection;
 
     if (collapseProgress >= 1) {
-      removeBlock(grid, blockId);
+      removeBlockMembers(grid, members);
+      blockIndex.delete(blockId);
       result.collapsedBlocks += 1;
       result.collapsedCells += members.length;
       continue;
     }
 
     const nextDurability = Math.max(1, Math.ceil(sample.maxDurability * (1 - collapseProgress)));
-    patchBlock(grid, blockId, {
+    patchBlockMembers(members, {
       durability: nextDurability,
       fortified: 0,
       flash: 1,

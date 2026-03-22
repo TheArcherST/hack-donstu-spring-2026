@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState, type MouseEvent, type PointerEvent } from "react";
+import { startTransition, useEffect, useRef, useState, type MouseEvent, type PointerEvent } from "react";
 
 import { createGameEngine } from "./engine";
-import type { EngineControls, FinishPayload, GameSnapshot } from "./types";
+import { createHudSnapshot } from "./snapshot";
+import type { EngineControls, FinishPayload, GameHudSnapshot, GameSnapshot } from "./types";
 import { completeSession } from "../lib/api";
 import { useSynthAudio } from "../lib/useSynthAudio";
 import type { CompletionResult } from "../types";
@@ -16,7 +17,10 @@ export function useGameSession({ sessionId, soundEnabled, onCompleted }: UseGame
   const controlsRef = useRef<EngineControls | null>(null);
   const gestureRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const onCompletedRef = useRef(onCompleted);
-  const [snapshot, setSnapshot] = useState<GameSnapshot | null>(null);
+  const frameSnapshotRef = useRef<GameSnapshot | null>(null);
+  const hudSnapshotRef = useRef<GameHudSnapshot | null>(null);
+  const lastHudCommitAtRef = useRef(0);
+  const [hudSnapshot, setHudSnapshot] = useState<GameHudSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const audio = useSynthAudio(soundEnabled);
@@ -28,7 +32,33 @@ export function useGameSession({ sessionId, soundEnabled, onCompleted }: UseGame
   useEffect(() => {
     const engine = createGameEngine({
       onStateChange: (nextSnapshot) => {
-        setSnapshot(nextSnapshot);
+        frameSnapshotRef.current = nextSnapshot;
+
+        const nextHudSnapshot = createHudSnapshot(nextSnapshot);
+        const previousHudSnapshot = hudSnapshotRef.current;
+        const now = performance.now();
+        const hasImportantHudChange =
+          !previousHudSnapshot ||
+          previousHudSnapshot.packetLoss !== nextHudSnapshot.packetLoss ||
+          previousHudSnapshot.activeIncidents !== nextHudSnapshot.activeIncidents ||
+          previousHudSnapshot.timeLeftSeconds !== nextHudSnapshot.timeLeftSeconds;
+
+        if (!hasImportantHudChange && now - lastHudCommitAtRef.current < 120) {
+          return;
+        }
+
+        hudSnapshotRef.current = nextHudSnapshot;
+        lastHudCommitAtRef.current = now;
+        startTransition(() => {
+          setHudSnapshot((current) =>
+            current &&
+            current.packetLoss === nextHudSnapshot.packetLoss &&
+            current.activeIncidents === nextHudSnapshot.activeIncidents &&
+            current.timeLeftSeconds === nextHudSnapshot.timeLeftSeconds
+              ? current
+              : nextHudSnapshot,
+          );
+        });
       },
       onFinish: async (payload: FinishPayload) => {
         setSaving(true);
@@ -140,7 +170,8 @@ export function useGameSession({ sessionId, soundEnabled, onCompleted }: UseGame
   }
 
   return {
-    snapshot,
+    frameSnapshotRef,
+    hudSnapshot,
     error,
     saving,
     stageHandlers: {

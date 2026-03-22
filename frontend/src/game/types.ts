@@ -87,8 +87,15 @@ export interface SignalPacket {
   frozenFrame: number | null;
 }
 
+export interface RenderBlock {
+  cell: Cell;
+  cells: Array<{ col: number; row: number }>;
+}
+
 export interface GameSnapshot {
   grid: Array<Array<Cell | null>>;
+  blocks?: RenderBlock[];
+  topSettledRow?: number;
   activePiece: Piece | null;
   nextPiece: Piece;
   cableSegments: CableSegment[];
@@ -119,6 +126,12 @@ export interface GameSnapshot {
   stableTargetSeconds: number;
   showHints: boolean;
   elapsedSeconds: number;
+}
+
+export interface GameHudSnapshot {
+  packetLoss: number;
+  activeIncidents: number;
+  timeLeftSeconds: number;
 }
 
 export interface FinishPayload {

@@ -2,7 +2,7 @@ import { BOARD_ROWS } from "./board.ts";
 import { buildBlockGeometry, getCellPaintRect } from "./blockGeometry.ts";
 import { getFittedDrawRect, getTextureContainSize } from "./renderMath.ts";
 import { SCENE_LAYER_ORDER, type SceneLayer } from "./renderLayers.ts";
-import { SCENE_ASSETS, getSceneLayout } from "./scene.ts";
+import { SCENE_ASSETS, type SceneLayout } from "./scene.ts";
 import type { AttackProjectile, CableSegment, Cell, GameSnapshot, Piece, SignalPacket } from "./types.ts";
 
 interface RenderPoint {
@@ -168,26 +168,31 @@ function drawImageStretchInRect(
   ctx.restore();
 }
 
-function collectBlocks(snapshot: GameSnapshot) {
+function getPieceCells(piece: Piece): RenderPoint[] {
+  return piece.shape[piece.rotation % piece.shape.length].map((cell) => ({ col: piece.x + cell.x, row: piece.y + cell.y }));
+}
+
+function collectBlocksFromGrid(snapshot: GameSnapshot) {
   const blocks = new Map<number, { cell: Cell; cells: RenderPoint[] }>();
-  snapshot.grid.forEach((row, rowIndex) => {
-    row.forEach((cell, colIndex) => {
+
+  for (let rowIndex = 0; rowIndex < snapshot.grid.length; rowIndex += 1) {
+    const row = snapshot.grid[rowIndex];
+    for (let colIndex = 0; colIndex < row.length; colIndex += 1) {
+      const cell = row[colIndex];
       if (!cell) {
-        return;
+        continue;
       }
+
       const block = blocks.get(cell.blockId);
       if (block) {
         block.cells.push({ col: colIndex, row: rowIndex });
       } else {
         blocks.set(cell.blockId, { cell, cells: [{ col: colIndex, row: rowIndex }] });
       }
-    });
-  });
-  return [...blocks.values()];
-}
+    }
+  }
 
-function getPieceCells(piece: Piece): RenderPoint[] {
-  return piece.shape[piece.rotation % piece.shape.length].map((cell) => ({ col: piece.x + cell.x, row: piece.y + cell.y }));
+  return [...blocks.values()];
 }
 
 function pickBaseTexture(cell: Cell): TextureVariant {
@@ -234,7 +239,7 @@ export function getContainerSpritesheetFrame(textureSrc: string | null, durabili
   return durability <= Math.max(1, Math.floor(maxDurability * 0.45)) ? 2 : 1;
 }
 
-function getCellRect(layout: ReturnType<typeof getSceneLayout>, col: number, row: number): Rect {
+function getCellRect(layout: SceneLayout, col: number, row: number): Rect {
   return {
     x: layout.laneCenters[col] - layout.cellSize / 2,
     y: layout.rowTops[row],
@@ -243,7 +248,7 @@ function getCellRect(layout: ReturnType<typeof getSceneLayout>, col: number, row
   };
 }
 
-function getCellPaintedRect(layout: ReturnType<typeof getSceneLayout>, col: number, row: number): Rect {
+function getCellPaintedRect(layout: SceneLayout, col: number, row: number): Rect {
   return getCellPaintRect(
     {
       boardLeft: layout.boardLeft,
@@ -259,7 +264,7 @@ function getCellPaintedRect(layout: ReturnType<typeof getSceneLayout>, col: numb
   );
 }
 
-function buildBlockPath(layout: ReturnType<typeof getSceneLayout>, cells: RenderPoint[]) {
+function buildBlockPath(layout: SceneLayout, cells: RenderPoint[]) {
   const path = new Path2D();
   const geometry = buildBlockGeometry(cells, (col, row) => getCellPaintedRect(layout, col, row));
 
@@ -269,7 +274,7 @@ function buildBlockPath(layout: ReturnType<typeof getSceneLayout>, cells: Render
   return path;
 }
 
-function getBlockRectBounds(layout: ReturnType<typeof getSceneLayout>, cells: RenderPoint[]) {
+function getBlockRectBounds(layout: SceneLayout, cells: RenderPoint[]) {
   return cells.reduce(
     (bounds, cell) => {
       const rect = getCellPaintedRect(layout, cell.col, cell.row);
@@ -370,7 +375,7 @@ function drawMetalSurface(
   ctx.restore();
 }
 
-function drawBackground(ctx: CanvasRenderingContext2D, snapshot: GameSnapshot, layout: ReturnType<typeof getSceneLayout>) {
+function drawBackground(ctx: CanvasRenderingContext2D, snapshot: GameSnapshot, layout: SceneLayout) {
   const sky = ctx.createLinearGradient(0, 0, 0, layout.height);
   sky.addColorStop(0, "#d8ebff");
   sky.addColorStop(0.38, "#c3dffc");
@@ -403,12 +408,12 @@ function drawBackground(ctx: CanvasRenderingContext2D, snapshot: GameSnapshot, l
   ctx.restore();
 }
 
-function drawPoleBackdrop(ctx: CanvasRenderingContext2D, layout: ReturnType<typeof getSceneLayout>) {
+function drawPoleBackdrop(ctx: CanvasRenderingContext2D, layout: SceneLayout) {
   void ctx;
   void layout;
 }
 
-function drawPoleForeground(ctx: CanvasRenderingContext2D, layout: ReturnType<typeof getSceneLayout>) {
+function drawPoleForeground(ctx: CanvasRenderingContext2D, layout: SceneLayout) {
   const pole = getTexture(SCENE_ASSETS.pole.src);
   if (pole && pole.complete && pole.naturalWidth > 0) {
     const poleRect = getPoleRect(layout);
@@ -427,7 +432,7 @@ function drawPoleForeground(ctx: CanvasRenderingContext2D, layout: ReturnType<ty
   ctx.restore();
 }
 
-function getPoleRect(layout: ReturnType<typeof getSceneLayout>): Rect {
+function getPoleRect(layout: SceneLayout): Rect {
   return {
     x: layout.poleAxisX - layout.poleWidth / 2,
     y: layout.poleTop,
@@ -542,7 +547,7 @@ function samplePoleSecurityAlpha(
 
 function drawPoleSecurityEffect(
   ctx: CanvasRenderingContext2D,
-  layout: ReturnType<typeof getSceneLayout>,
+  layout: SceneLayout,
   segmentAlphas: number[],
 ) {
   const effectTexture = getTexture(SCENE_ASSETS.poleSecurityEffect.src);
@@ -599,7 +604,7 @@ function getPacketFrame(packet: SignalPacket) {
   return Math.min(SIGNAL_SPRITE_FRAME_COUNT - 1, Math.floor(normalized * SIGNAL_SPRITE_FRAME_COUNT));
 }
 
-function drawSignalPackets(ctx: CanvasRenderingContext2D, snapshot: GameSnapshot, layout: ReturnType<typeof getSceneLayout>) {
+function drawSignalPackets(ctx: CanvasRenderingContext2D, snapshot: GameSnapshot, layout: SceneLayout) {
   const signalSheet = getTexture(SCENE_ASSETS.poleSignal.src);
   if (!signalSheet || !signalSheet.complete || signalSheet.naturalWidth === 0) {
     return;
@@ -638,7 +643,7 @@ function drawSignalPackets(ctx: CanvasRenderingContext2D, snapshot: GameSnapshot
   }
 }
 
-function drawSlotGrid(ctx: CanvasRenderingContext2D, layout: ReturnType<typeof getSceneLayout>) {
+function drawSlotGrid(ctx: CanvasRenderingContext2D, layout: SceneLayout) {
   ctx.save();
   const beamWidth = layout.cellSize * 0.82;
   const shaftGradient = ctx.createLinearGradient(0, layout.gridTop, 0, layout.boardBottom);
@@ -653,7 +658,7 @@ function drawSlotGrid(ctx: CanvasRenderingContext2D, layout: ReturnType<typeof g
   ctx.restore();
 }
 
-function getAttackPath(layout: ReturnType<typeof getSceneLayout>, projectile: AttackProjectile) {
+function getAttackPath(layout: SceneLayout, projectile: AttackProjectile) {
   const y = layout.rowCenters[projectile.row];
   const startX = projectile.side === "left" ? -layout.cellSize * 0.75 : layout.width + layout.cellSize * 0.75;
   const endX =
@@ -678,7 +683,7 @@ function sampleQuadraticTangent(start: number, control: number, end: number, t: 
   return 2 * (1 - t) * (control - start) + 2 * t * (end - control);
 }
 
-function drawAttackProjectiles(ctx: CanvasRenderingContext2D, snapshot: GameSnapshot, layout: ReturnType<typeof getSceneLayout>) {
+function drawAttackProjectiles(ctx: CanvasRenderingContext2D, snapshot: GameSnapshot, layout: SceneLayout) {
   const bulletSheet = getTexture(ATTACK_BULLET_SPRITE);
   if (!bulletSheet || !bulletSheet.complete || bulletSheet.naturalWidth === 0) {
     return;
@@ -746,7 +751,7 @@ function drawAttackProjectiles(ctx: CanvasRenderingContext2D, snapshot: GameSnap
   }
 }
 
-function drawDamageLabels(ctx: CanvasRenderingContext2D, snapshot: GameSnapshot, layout: ReturnType<typeof getSceneLayout>) {
+function drawDamageLabels(ctx: CanvasRenderingContext2D, snapshot: GameSnapshot, layout: SceneLayout) {
   for (const label of snapshot.damageLabels) {
     const visibleAge = label.age - label.delayMs;
     if (visibleAge < 0) {
@@ -777,7 +782,7 @@ function drawDamageLabels(ctx: CanvasRenderingContext2D, snapshot: GameSnapshot,
 
 function drawBlockGroup(
   ctx: CanvasRenderingContext2D,
-  layout: ReturnType<typeof getSceneLayout>,
+  layout: SceneLayout,
   cell: Cell,
   cells: RenderPoint[],
   active = false,
@@ -844,7 +849,7 @@ function drawBlockGroup(
   ctx.restore();
 }
 
-function drawAuditBursts(ctx: CanvasRenderingContext2D, snapshot: GameSnapshot, layout: ReturnType<typeof getSceneLayout>) {
+function drawAuditBursts(ctx: CanvasRenderingContext2D, snapshot: GameSnapshot, layout: SceneLayout) {
   snapshot.auditBursts.forEach((burst) => {
     const rect = getCellRect(layout, Math.round(burst.x), Math.round(burst.y));
     const centerX = rect.x + rect.width / 2;
@@ -861,7 +866,7 @@ function drawAuditBursts(ctx: CanvasRenderingContext2D, snapshot: GameSnapshot, 
   });
 }
 
-function drawForeground(ctx: CanvasRenderingContext2D, layout: ReturnType<typeof getSceneLayout>) {
+function drawForeground(ctx: CanvasRenderingContext2D, layout: SceneLayout) {
   const curb = getTexture(SCENE_ASSETS.foreground);
   if (curb && curb.complete && curb.naturalWidth > 0) {
     const aspectHeight = layout.width * (curb.naturalHeight / curb.naturalWidth);
@@ -877,8 +882,8 @@ function drawForeground(ctx: CanvasRenderingContext2D, layout: ReturnType<typeof
   }
 }
 
-function drawBlocksLayer(ctx: CanvasRenderingContext2D, snapshot: GameSnapshot, layout: ReturnType<typeof getSceneLayout>) {
-  for (const block of collectBlocks(snapshot)) {
+function drawBlocksLayer(ctx: CanvasRenderingContext2D, snapshot: GameSnapshot, layout: SceneLayout) {
+  for (const block of snapshot.blocks ?? collectBlocksFromGrid(snapshot)) {
     drawBlockGroup(ctx, layout, block.cell, block.cells);
   }
 
@@ -914,7 +919,7 @@ function drawBlocksLayer(ctx: CanvasRenderingContext2D, snapshot: GameSnapshot, 
 function drawPoleLayer(
   ctx: CanvasRenderingContext2D,
   snapshot: GameSnapshot,
-  layout: ReturnType<typeof getSceneLayout>,
+  layout: SceneLayout,
   deltaMs: number,
 ) {
   const trailState = getPoleSecurityTrailState(ctx.canvas, snapshot.cableSegments.length);
@@ -923,7 +928,7 @@ function drawPoleLayer(
   drawPoleSecurityEffect(ctx, layout, segmentAlphas);
 }
 
-function drawEffectsLayer(ctx: CanvasRenderingContext2D, snapshot: GameSnapshot, layout: ReturnType<typeof getSceneLayout>) {
+function drawEffectsLayer(ctx: CanvasRenderingContext2D, snapshot: GameSnapshot, layout: SceneLayout) {
   drawSignalPackets(ctx, snapshot, layout);
   drawAttackProjectiles(ctx, snapshot, layout);
   drawDamageLabels(ctx, snapshot, layout);
@@ -934,7 +939,7 @@ function renderSceneLayer(
   layer: SceneLayer,
   ctx: CanvasRenderingContext2D,
   snapshot: GameSnapshot,
-  layout: ReturnType<typeof getSceneLayout>,
+  layout: SceneLayout,
   deltaMs: number,
 ) {
   switch (layer) {
@@ -961,13 +966,10 @@ function renderSceneLayer(
 export function renderSnapshot(
   ctx: CanvasRenderingContext2D,
   snapshot: GameSnapshot,
-  viewportWidth = ctx.canvas.width,
-  viewportHeight = ctx.canvas.height,
+  layout: SceneLayout,
   cameraLift = 0,
   deltaMs = 16.67,
 ) {
-  const layout = getSceneLayout(viewportWidth, viewportHeight);
-
   ctx.clearRect(0, 0, layout.width, layout.height);
   ctx.save();
   ctx.beginPath();

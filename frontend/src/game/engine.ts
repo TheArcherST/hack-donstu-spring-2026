@@ -26,6 +26,7 @@ import {
   makePiece,
   nextPacketId,
   patchBlock,
+  removeBlock,
   resetSimulationCounters,
   type SimulationState,
   withMetrics,
@@ -116,8 +117,24 @@ export function applyAttackImpact(state: SimulationState, row: number, side: "le
     };
   }
 
-  // Container hits are cosmetic only and must not degrade link availability.
-  patchBlock(state.grid, target.blockId, { flash: 1 });
+  if (target.category === "guard") {
+    patchBlock(state.grid, target.blockId, { flash: 1 });
+    return {
+      impact: "block" as const,
+      targetCol: targetX,
+    };
+  }
+
+  const nextDurability = Math.max(0, target.durability - 1);
+  if (nextDurability <= 0) {
+    removeBlock(state.grid, target.blockId);
+    state.destroyedSegments += 1;
+  } else {
+    patchBlock(state.grid, target.blockId, {
+      durability: nextDurability,
+      flash: 1,
+    });
+  }
 
   return {
     impact: "block" as const,

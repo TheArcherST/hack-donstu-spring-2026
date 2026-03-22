@@ -54,6 +54,8 @@ const SCENE_ANCHORS: SceneAnchors = {
   boardHeightRatio: 0.58,
 };
 
+let cachedLayout: SceneLayout | null = null;
+
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
@@ -68,6 +70,10 @@ function createBoardAxis(layoutWidth: number, poleAxisX: number, cellPitch: numb
 }
 
 export function getSceneLayout(width: number, height: number): SceneLayout {
+  if (cachedLayout && cachedLayout.width === width && cachedLayout.height === height) {
+    return cachedLayout;
+  }
+
   const safeTop = clamp(height * SCENE_ANCHORS.topSafeRatio, 84, 134);
   const safeBottom = clamp(height * SCENE_ANCHORS.bottomSafeRatio, 120, 182);
   const curbHeight = clamp(height * 0.12, 84, 132);
@@ -105,7 +111,7 @@ export function getSceneLayout(width: number, height: number): SceneLayout {
   const rowTops = Array.from({ length: BOARD_ROWS }, (_, row) => gridTop + row * (cellSize + verticalGap));
   const rowCenters = rowTops.map((top) => top + cellSize / 2);
   const gridHeight = rowTops[BOARD_ROWS - 1] + cellSize - gridTop;
-  return {
+  const layout = {
     width,
     height,
     safeTop,
@@ -132,4 +138,7 @@ export function getSceneLayout(width: number, height: number): SceneLayout {
     rowCenters,
     curbHeight,
   };
+
+  cachedLayout = layout;
+  return layout;
 }

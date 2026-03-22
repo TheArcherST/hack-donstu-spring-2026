@@ -54,7 +54,7 @@ test("preferred spawn row moves upward as the camera lift grows", () => {
   assert.equal(getPreferredSpawnY(0, verticalPiece), -1);
 });
 
-test("container hits stay block-scoped and do not degrade availability", () => {
+test("guard blocks stay block-scoped and do not degrade from direct hits", () => {
   const state = createSimulationState();
   state.grid[10][0] = {
     blockId: 1,
@@ -84,6 +84,56 @@ test("container hits stay block-scoped and do not degrade availability", () => {
   assert.equal(after.linkQuality, before.linkQuality);
   assert.equal(after.latencyMs, before.latencyMs);
   assert.equal(after.cableSegments[10]?.dropChance, before.cableSegments[10]?.dropChance);
+});
+
+test("non-guard blocks lose durability when a projectile hits them", () => {
+  const state = createSimulationState();
+  state.grid[10][0] = {
+    blockId: 1,
+    category: "normal",
+    baseDurability: 3,
+    durability: 3,
+    maxDurability: 3,
+    fortified: 0,
+    audited: false,
+    flash: 0,
+    surfaceStyle: "metal",
+    textureSrc: null,
+    textureRotation: 0,
+  };
+
+  const before = withMetrics(state);
+  const result = applyAttackImpact(state, 10, "left");
+  const after = withMetrics(state);
+
+  assert.equal(result.impact, "block");
+  assert.equal(state.grid[10][0]?.durability, 2);
+  assert.equal(state.grid[10][0]?.flash, 1);
+  assert.ok(after.linkQuality <= before.linkQuality);
+});
+
+test("fragile non-guard blocks are destroyed by a finishing hit", () => {
+  const state = createSimulationState();
+  state.grid[10][0] = {
+    blockId: 1,
+    category: "tech",
+    baseDurability: 1,
+    durability: 1,
+    maxDurability: 1,
+    fortified: 0,
+    audited: false,
+    flash: 0,
+    surfaceStyle: "metal",
+    textureSrc: null,
+    textureRotation: 0,
+  };
+
+  const result = applyAttackImpact(state, 10, "left");
+
+  assert.equal(result.impact, "block");
+  assert.equal(state.grid[10][0], null);
+  assert.equal(state.destroyedSegments, 1);
+  assert.equal(state.cableHitDebuffs.length, 0);
 });
 
 test("only misses add cable-hit debuffs and reduce availability", () => {

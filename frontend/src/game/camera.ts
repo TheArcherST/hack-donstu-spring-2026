@@ -9,6 +9,10 @@ function clamp(value: number, min: number, max: number) {
 }
 
 function getTopSettledRow(snapshot: GameSnapshot) {
+  if (typeof snapshot.topSettledRow === "number") {
+    return snapshot.topSettledRow;
+  }
+
   let topRow = snapshot.grid.length;
 
   snapshot.grid.forEach((row, rowIndex) => {

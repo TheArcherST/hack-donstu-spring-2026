@@ -1,26 +1,13 @@
-import { useEffect, useState } from "react";
-
-import { fetchLeaderboard } from "./lib/api";
+import { resolveAppPage } from "./app/routing";
+import { useLeaderboard } from "./app/useLeaderboard";
 import { GameExperience } from "./pages/GameExperience";
 import { AdminPage } from "./pages/AdminPage";
-import type { LeaderboardEntry } from "./types";
 
 export default function App() {
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [leaderboardError, setLeaderboardError] = useState<string | null>(null);
+  const { leaderboard, leaderboardError, setLeaderboard } = useLeaderboard();
+  const page = resolveAppPage(window.location.pathname);
 
-  useEffect(() => {
-    fetchLeaderboard()
-      .then((items) => {
-        setLeaderboard(items);
-        setLeaderboardError(null);
-      })
-      .catch((error: Error) => {
-        setLeaderboardError(error.message);
-      });
-  }, []);
-
-  if (window.location.pathname.startsWith("/admin")) {
+  if (page === "admin") {
     return <AdminPage />;
   }
 

@@ -10,37 +10,40 @@ interface ResultScreenProps {
 export function ResultScreen({ result, onReset }: ResultScreenProps) {
   const { session, rank, leaderboard } = result;
   const success = session.won;
-  const linkQuality = Number(session.extra_data?.linkQuality ?? session.protection_level ?? 0);
-  const packetLoss = Number(session.extra_data?.packetLoss ?? 0);
-  const throughput = Number(session.extra_data?.throughput ?? 0);
-  const latencyMs = Number(session.extra_data?.latencyMs ?? 0);
-  const deliveredPackets = Number(session.extra_data?.deliveredPackets ?? 0);
-  const stableHoldSeconds = Number(session.extra_data?.stableHoldSeconds ?? 0);
-  const stableTargetSeconds = Number(session.extra_data?.stableTargetSeconds ?? 8);
+  const protectionLevel = session.protection_level;
+  const { network_metrics, stability_window } = session.result_details;
 
   return (
     <div className="experience-grid">
       <section className="panel hero-panel">
         <div className="panel-header">
-          <p className="eyebrow">{success ? "Соединение восстановлено" : "Линия не удержала поток"}</p>
+          <p className="eyebrow">{success ? "Потери удержаны в норме" : "Потери канала вышли за предел"}</p>
           <h2>
-            {success ? "Пакеты снова уверенно дошли до верхнего выхода" : "Нижние секции продолжали отравлять магистраль"}
+            {success ? "Общий packet loss остался в допустимом диапазоне" : "Итоговый packet loss оказался слишком высоким"}
           </h2>
           <p className="lead">
             {success
-              ? "Связь считалась восстановленной, когда поток удержался в стабильном состоянии без критических срывов."
+              ? "Матч шёл до конца таймера, а итог определился по минимальному проценту потерянных пакетов."
               : session.failure_reason ?? "Поток остался слишком редким и рваным для устойчивой связи."}
           </p>
         </div>
 
         <div className="result-metrics">
           <article>
-            <span>Счёт</span>
-            <strong>{session.score}</strong>
+            <span>Packet loss</span>
+            <strong>{network_metrics.packet_loss}%</strong>
           </article>
           <article>
-            <span>Качество линии</span>
-            <strong>{linkQuality}%</strong>
+            <span>Доставка</span>
+            <strong>{network_metrics.delivery_rate}%</strong>
+          </article>
+          <article>
+            <span>Пакеты</span>
+            <strong>{network_metrics.delivered_packets}</strong>
+          </article>
+          <article>
+            <span>Защита</span>
+            <strong>{protectionLevel}%</strong>
           </article>
           <article>
             <span>Место</span>
@@ -52,25 +55,27 @@ export function ResultScreen({ result, onReset }: ResultScreenProps) {
           </article>
           <article>
             <span>Потери</span>
-            <strong>{packetLoss}%</strong>
+            <strong>{network_metrics.dropped_packets}</strong>
           </article>
           <article>
             <span>Латентность</span>
-            <strong>{latencyMs} мс</strong>
+            <strong>{network_metrics.latency_ms} мс</strong>
           </article>
           <article>
             <span>Поток</span>
-            <strong>{throughput}%</strong>
+            <strong>{network_metrics.throughput}%</strong>
           </article>
           <article>
-            <span>Дошло пакетов</span>
-            <strong>{deliveredPackets}</strong>
+            <span>Уронено пакетов</span>
+            <strong>{network_metrics.dropped_packets}</strong>
           </article>
           <article>
-            <span>Окно стабильности</span>
-            <strong>
-              {stableHoldSeconds}/{stableTargetSeconds} сек
-            </strong>
+            <span>Качество линии</span>
+            <strong>{network_metrics.link_quality}%</strong>
+          </article>
+          <article>
+            <span>Стабильный режим</span>
+            <strong>{stability_window.hold_seconds} сек</strong>
           </article>
         </div>
 

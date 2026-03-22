@@ -1,7 +1,8 @@
 from datetime import datetime
-from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from app.session_result import SessionResultDetails, default_session_result_details
 
 
 class ParticipantCreate(BaseModel):
@@ -64,7 +65,7 @@ class SessionOut(BaseModel):
     preserved_segments: int
     failure_reason: str | None
     prize_issued: bool
-    extra_data: dict[str, Any]
+    result_details: SessionResultDetails = Field(default_factory=default_session_result_details)
     created_at: datetime
     completed_at: datetime | None
 
@@ -83,7 +84,7 @@ class SessionCompleteIn(BaseModel):
     destroyed_segments: int = Field(ge=0)
     preserved_segments: int = Field(ge=0)
     failure_reason: str | None = Field(default=None, max_length=255)
-    extra_data: dict[str, Any] = Field(default_factory=dict)
+    result_details: SessionResultDetails
 
 
 class LeaderboardEntry(BaseModel):
@@ -92,6 +93,8 @@ class LeaderboardEntry(BaseModel):
     score: int
     won: bool
     protection_level: int
+    packet_loss: int
+    delivered_packets: int
     completed_at: datetime | None
 
 
@@ -114,6 +117,7 @@ class AdminEntry(BaseModel):
     protection_level: int
     status: str
     prize_issued: bool
+    result_details: SessionResultDetails = Field(default_factory=default_session_result_details)
     created_at: datetime
     completed_at: datetime | None
 

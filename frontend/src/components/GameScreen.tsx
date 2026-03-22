@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState, type PointerEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { createGameEngine } from "../game/engine";
-import { renderSnapshot } from "../game/render";
-import type { EngineControls, FinishPayload, GameSnapshot } from "../game/types";
-import { completeSession } from "../lib/api";
+import { advanceCameraLift, getCameraLiftTarget } from "../game/camera";
+import { useGameSession } from "../game/useGameSession";
 import { formatSeconds } from "../lib/format";
-import { useSynthAudio } from "../lib/useSynthAudio";
+import { renderSnapshot } from "../game/render";
+import { getSceneLayout } from "../game/scene";
+import { fitViewport } from "../game/viewport";
 import type { CompletionResult } from "../types";
 
 interface GameScreenProps {
@@ -15,187 +15,168 @@ interface GameScreenProps {
   onCompleted: (result: CompletionResult) => void;
 }
 
-export function GameScreen({ sessionId, soundEnabled, onToggleSound, onCompleted }: GameScreenProps) {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const controlsRef = useRef<EngineControls | null>(null);
-  const gestureRef = useRef<{ x: number; y: number; time: number } | null>(null);
-  const onCompletedRef = useRef(onCompleted);
-  const [snapshot, setSnapshot] = useState<GameSnapshot | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const audio = useSynthAudio(soundEnabled);
-  const audioRef = useRef(audio);
+function getRecentPacketLossClass(packetLoss: number) {
+  if (packetLoss < 10) {
+    return "hud-status hud-status-stable";
+  }
+  if (packetLoss > 30) {
+    return "hud-status hud-status-danger";
+  }
+  return "hud-status hud-status-neutral";
+}
 
-  onCompletedRef.current = onCompleted;
-  audioRef.current = audio;
+export function GameScreen({ sessionId, soundEnabled, onToggleSound, onCompleted }: GameScreenProps) {
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [viewport, setViewport] = useState({ width: 390, height: 844, offsetX: 0, offsetY: 0, dpr: 1 });
+  const { snapshot, error, saving, stageHandlers } = useGameSession({ sessionId, soundEnabled, onCompleted });
+  const snapshotRef = useRef(snapshot);
+  const viewportRef = useRef({ width: 390, height: 844, offsetX: 0, offsetY: 0, dpr: 1 });
+  const cameraLiftRef = useRef(0);
+  const renderFrameRef = useRef(0);
+  const lastRenderTimeRef = useRef(0);
+
+  snapshotRef.current = snapshot;
+  viewportRef.current = viewport;
 
   useEffect(() => {
-    const engine = createGameEngine({
-      onStateChange: (nextSnapshot) => {
-        setSnapshot(nextSnapshot);
-      },
-      onFinish: async (payload: FinishPayload) => {
-        setSaving(true);
-        try {
-          const result = await completeSession(sessionId, payload);
-          onCompletedRef.current(result);
-        } catch (requestError) {
-          setError(requestError instanceof Error ? requestError.message : "Не удалось сохранить результат.");
-        } finally {
-          setSaving(false);
-          audioRef.current.setBackgroundActive(false);
-        }
-      },
-      onSound: (cue) => {
-        audioRef.current.play(cue);
-      },
-    });
-
-    controlsRef.current = engine;
-    engine.start();
-    audioRef.current.resume();
-    audioRef.current.setBackgroundActive(true);
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (!controlsRef.current) {
-        return;
-      }
-      if (event.key === "ArrowLeft" || event.key.toLowerCase() === "a") {
-        event.preventDefault();
-        controlsRef.current.moveLeft();
-      } else if (event.key === "ArrowRight" || event.key.toLowerCase() === "d") {
-        event.preventDefault();
-        controlsRef.current.moveRight();
-      } else if (event.key === "ArrowUp" || event.key.toLowerCase() === "w") {
-        event.preventDefault();
-        controlsRef.current.rotate();
-      } else if (event.key === "ArrowDown" || event.key.toLowerCase() === "s") {
-        event.preventDefault();
-        controlsRef.current.softDrop();
-      } else if (event.key === " ") {
-        event.preventDefault();
-        controlsRef.current.hardDrop();
-      }
+    const stage = stageRef.current;
+    const canvas = canvasRef.current;
+    if (!stage || !canvas) {
+      return;
     }
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      audioRef.current.setBackgroundActive(false);
-      engine.stop();
-      controlsRef.current = null;
+    let frameId = 0;
+    const syncViewport = () => {
+      const bounds = stage.getBoundingClientRect();
+      const nextWidth = Math.max(1, Math.round(bounds.width));
+      const nextHeight = Math.max(1, Math.round(bounds.height));
+      const fitted = fitViewport(nextWidth, nextHeight);
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      canvas.width = Math.round(fitted.width * dpr);
+      canvas.height = Math.round(fitted.height * dpr);
+      canvas.style.width = `${fitted.width}px`;
+      canvas.style.height = `${fitted.height}px`;
+      canvas.style.left = `${fitted.offsetX}px`;
+      canvas.style.top = `${fitted.offsetY}px`;
+      setViewport((current) =>
+        current.width === fitted.width &&
+        current.height === fitted.height &&
+        current.offsetX === fitted.offsetX &&
+        current.offsetY === fitted.offsetY &&
+        current.dpr === dpr
+          ? current
+          : { width: fitted.width, height: fitted.height, offsetX: fitted.offsetX, offsetY: fitted.offsetY, dpr },
+      );
     };
-  }, [sessionId]);
+
+    const scheduleSync = () => {
+      cancelAnimationFrame(frameId);
+      frameId = requestAnimationFrame(syncViewport);
+    };
+
+    const observer = new ResizeObserver(() => {
+      scheduleSync();
+    });
+
+    observer.observe(stage);
+    window.addEventListener("resize", scheduleSync);
+    window.addEventListener("orientationchange", scheduleSync);
+    window.visualViewport?.addEventListener("resize", scheduleSync);
+    window.visualViewport?.addEventListener("scroll", scheduleSync);
+    scheduleSync();
+
+    return () => {
+      cancelAnimationFrame(frameId);
+      observer.disconnect();
+      window.removeEventListener("resize", scheduleSync);
+      window.removeEventListener("orientationchange", scheduleSync);
+      window.visualViewport?.removeEventListener("resize", scheduleSync);
+      window.visualViewport?.removeEventListener("scroll", scheduleSync);
+    };
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !snapshot) {
+    if (!canvas) {
       return;
     }
     const context = canvas.getContext("2d");
     if (!context) {
       return;
     }
-    renderSnapshot(context, snapshot);
-  }, [snapshot]);
 
-  function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
-    event.preventDefault();
-    event.currentTarget.setPointerCapture?.(event.pointerId);
-    audioRef.current.resume();
-    gestureRef.current = {
-      x: event.clientX,
-      y: event.clientY,
-      time: Date.now(),
-    };
-  }
+    const renderFrame = (timestamp: number) => {
+      const currentViewport = viewportRef.current;
+      const currentSnapshot = snapshotRef.current;
+      const deltaMs = lastRenderTimeRef.current === 0 ? 16.67 : timestamp - lastRenderTimeRef.current;
+      lastRenderTimeRef.current = timestamp;
 
-  function handlePointerMove(event: PointerEvent<HTMLDivElement>) {
-    event.preventDefault();
-  }
+      context.setTransform(currentViewport.dpr, 0, 0, currentViewport.dpr, 0, 0);
 
-  function handlePointerUp(event: PointerEvent<HTMLDivElement>) {
-    event.preventDefault();
-    event.currentTarget.releasePointerCapture?.(event.pointerId);
-    const start = gestureRef.current;
-    const controls = controlsRef.current;
-    if (!start || !controls) {
-      return;
-    }
-
-    const dx = event.clientX - start.x;
-    const dy = event.clientY - start.y;
-    const duration = Date.now() - start.time;
-    gestureRef.current = null;
-
-    if (Math.abs(dx) < 12 && Math.abs(dy) < 12) {
-      controls.rotate();
-      return;
-    }
-    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 24) {
-      if (dx > 0) {
-        controls.moveRight();
+      if (currentSnapshot) {
+        const layout = getSceneLayout(currentViewport.width, currentViewport.height);
+        const targetLift = getCameraLiftTarget(layout, currentSnapshot);
+        cameraLiftRef.current = advanceCameraLift(cameraLiftRef.current, targetLift, deltaMs);
+        renderSnapshot(context, currentSnapshot, currentViewport.width, currentViewport.height, cameraLiftRef.current, deltaMs);
       } else {
-        controls.moveLeft();
+        cameraLiftRef.current = 0;
+        context.clearRect(0, 0, currentViewport.width, currentViewport.height);
       }
-      return;
-    }
-    if (dy > 110 || (dy > 70 && duration > 220)) {
-      controls.hardDrop();
-      return;
-    }
-    if (dy > 28) {
-      controls.softDrop();
-    }
-  }
 
-  function handlePointerCancel(event: PointerEvent<HTMLDivElement>) {
-    event.preventDefault();
-    event.currentTarget.releasePointerCapture?.(event.pointerId);
-    gestureRef.current = null;
-  }
+      renderFrameRef.current = requestAnimationFrame(renderFrame);
+    };
 
-  if (!snapshot) {
-    return (
-      <section className="panel game-panel">
-        <p className="muted">Подготавливаем игровое поле...</p>
-      </section>
-    );
-  }
+    renderFrameRef.current = requestAnimationFrame(renderFrame);
+
+    return () => {
+      cancelAnimationFrame(renderFrameRef.current);
+      lastRenderTimeRef.current = 0;
+    };
+  }, []);
 
   return (
     <section className="panel game-panel">
       <div
+        ref={stageRef}
         className="game-stage"
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerCancel}
-        onContextMenu={(event) => event.preventDefault()}
+        onPointerDown={stageHandlers.onPointerDown}
+        onPointerMove={stageHandlers.onPointerMove}
+        onPointerUp={stageHandlers.onPointerUp}
+        onPointerCancel={stageHandlers.onPointerCancel}
+        onContextMenu={stageHandlers.onContextMenu}
       >
-        <canvas ref={canvasRef} className="game-canvas" width={400} height={760} />
+        <canvas ref={canvasRef} className="game-canvas" width={viewport.width} height={viewport.height} />
 
-        <header className="game-overlay game-overlay-top hud-bar">
-          <div className="hud-bar-metric">
-            <span>Время</span>
-            <strong>{formatSeconds(snapshot.timeLeftSeconds)}</strong>
+        {snapshot ? (
+          <>
+            <div className="game-overlay game-overlay-top-left">
+              <button type="button" className="sound-toggle sound-toggle-floating" onClick={onToggleSound}>
+                {soundEnabled ? "🔊" : "🔈"}
+              </button>
+            </div>
+            <header className="game-overlay game-overlay-top-right hud-inline">
+              <div className="hud-inline-metric">
+                <span>Время</span>
+                <strong>{formatSeconds(snapshot.timeLeftSeconds)}</strong>
+              </div>
+              <div className="hud-inline-metric hud-inline-metric-status">
+                <span>Loss 5с</span>
+                <strong className={getRecentPacketLossClass(snapshot.recentPacketLoss)}>
+                  {snapshot.recentPacketLoss}%
+                </strong>
+              </div>
+              <div className="hud-inline-metric">
+                <span>Пакеты</span>
+                <strong>{snapshot.deliveredPackets}</strong>
+              </div>
+            </header>
+          </>
+        ) : (
+          <div className="game-overlay game-overlay-center game-loading">
+            <p className="muted">Подготавливаем игровое поле...</p>
           </div>
-          <div className="hud-bar-divider" />
-          <div className="hud-bar-metric">
-            <span>Стабильно</span>
-            <strong>
-              {snapshot.stableHoldSeconds}/{snapshot.stableTargetSeconds}с
-            </strong>
-          </div>
-          <div className="hud-bar-divider" />
-          <div className="hud-bar-metric">
-            <span>Счёт</span>
-            <strong>{snapshot.score}</strong>
-          </div>
-          <button type="button" className="sound-toggle sound-toggle-bar" onClick={onToggleSound}>
-            {soundEnabled ? "🔊" : "🔈"}
-          </button>
-        </header>
+        )}
       </div>
 
       {saving ? <div className="overlay-banner">Сохраняем результат...</div> : null}

@@ -60,6 +60,7 @@ export function togglePrizeIssued(sessionId: number, prizeIssued: boolean) {
   });
 }
 
-export function exportCsvUrl() {
-  return `${API_BASE_URL}/admin/export.csv`;
+export function exportCsvUrl(params?: URLSearchParams) {
+  const query = params?.toString();
+  return `${API_BASE_URL}/admin/export.csv${query ? `?${query}` : ""}`;
 }

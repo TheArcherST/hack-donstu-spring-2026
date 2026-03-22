@@ -1,5 +1,7 @@
+import type { SessionResultDetails } from "../types";
+
 export type BlockCategory = "normal" | "tech" | "guard" | "audit";
-export type ChannelState = "overloaded" | "partial" | "guarded";
+export type ChannelState = SessionResultDetails["network_metrics"]["channel_state"];
 export type SoundCue = "lock" | "attack" | "break" | "audit" | "win" | "lose";
 export type SegmentState = "stable" | "unstable" | "critical";
 
@@ -8,7 +10,13 @@ export interface Point {
   y: number;
 }
 
-export interface Cell {
+export interface BlockVisual {
+  surfaceStyle: "textured" | "metal";
+  textureSrc: string | null;
+  textureRotation: number;
+}
+
+export interface Cell extends BlockVisual {
   blockId: number;
   category: BlockCategory;
   baseDurability: number;
@@ -19,7 +27,7 @@ export interface Cell {
   flash: number;
 }
 
-export interface Piece {
+export interface Piece extends BlockVisual {
   id: number;
   category: BlockCategory;
   shape: Point[][];
@@ -28,10 +36,20 @@ export interface Piece {
   y: number;
 }
 
-export interface AttackPulse {
+export interface AttackProjectile {
   row: number;
   side: "left" | "right";
   age: number;
+  targetCol: number | null;
+  impact: "block" | "cable";
+}
+
+export interface DamageLabel {
+  row: number;
+  side: "left" | "right";
+  age: number;
+  delayMs: number;
+  textureSrc: string;
 }
 
 export interface AuditBurst {
@@ -45,6 +63,7 @@ export interface CableSegment {
   leftCovered: boolean;
   rightCovered: boolean;
   stress: number;
+  expectedProtection: number;
   protection: number;
   signalSpeed: number;
   signalBrightness: number;
@@ -61,6 +80,7 @@ export interface SignalPacket {
   corrupted: number;
   state: "travelling" | "dropping";
   age: number;
+  frozenFrame: number | null;
 }
 
 export interface GameSnapshot {
@@ -79,7 +99,8 @@ export interface GameSnapshot {
   status: "running" | "won" | "lost";
   failureReason: string | null;
   channelState: ChannelState;
-  attackPulses: AttackPulse[];
+  attackProjectiles: AttackProjectile[];
+  damageLabels: DamageLabel[];
   auditBursts: AuditBurst[];
   signalPackets: SignalPacket[];
   linkQuality: number;
@@ -88,6 +109,7 @@ export interface GameSnapshot {
   latencyMs: number;
   deliveredPackets: number;
   droppedPackets: number;
+  recentPacketLoss: number;
   stableHoldSeconds: number;
   stableTargetSeconds: number;
   showHints: boolean;
@@ -103,7 +125,7 @@ export interface FinishPayload {
   destroyed_segments: number;
   preserved_segments: number;
   failure_reason: string | null;
-  extra_data: Record<string, unknown>;
+  result_details: SessionResultDetails;
 }
 
 export interface EngineControls {

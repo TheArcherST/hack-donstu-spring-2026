@@ -1,0 +1,83 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+
+import {
+  applyStructureGravityStep,
+  buildCableStressFromHitDebuffs,
+  createEmptyGrid,
+  createSimulationState,
+  getCableHitDebuffStrength,
+  withMetrics,
+} from "./simulation.ts";
+import type { Cell } from "./types.ts";
+
+function createCell(blockId: number): Cell {
+  return {
+    blockId,
+    category: "normal",
+    baseDurability: 3,
+    durability: 3,
+    maxDurability: 3,
+    fortified: 0,
+    audited: false,
+    flash: 0,
+    surfaceStyle: "metal",
+    textureSrc: null,
+    textureRotation: 0,
+  };
+}
+
+test("structure gravity drops unsupported blocks one row per tick, including stacked groups", () => {
+  const grid = createEmptyGrid();
+
+  grid[20][4] = createCell(1);
+  grid[20][5] = createCell(1);
+  grid[21][4] = createCell(1);
+  grid[21][5] = createCell(1);
+
+  grid[18][4] = createCell(2);
+  grid[18][5] = createCell(2);
+  grid[19][4] = createCell(2);
+  grid[19][5] = createCell(2);
+
+  const movedBlocks = applyStructureGravityStep(grid);
+
+  assert.equal(movedBlocks, 2);
+  assert.equal(grid[19][4]?.blockId, 2);
+  assert.equal(grid[19][5]?.blockId, 2);
+  assert.equal(grid[20][4]?.blockId, 2);
+  assert.equal(grid[20][5]?.blockId, 2);
+  assert.equal(grid[21][4]?.blockId, 1);
+  assert.equal(grid[21][5]?.blockId, 1);
+  assert.equal(grid[22][4]?.blockId, 1);
+  assert.equal(grid[22][5]?.blockId, 1);
+});
+
+test("cable hit debuff stays strong briefly and then decays over time", () => {
+  assert.equal(getCableHitDebuffStrength(0), 1);
+  assert.equal(getCableHitDebuffStrength(2_500), 1);
+  assert.ok(getCableHitDebuffStrength(6_000) < 0.55);
+  assert.equal(getCableHitDebuffStrength(15_000), 0);
+});
+
+test("expected protection remains structural while live protection dips from cable hits", () => {
+  const state = createSimulationState();
+
+  state.grid[10][2] = createCell(1);
+  state.grid[10][3] = createCell(1);
+  state.grid[10][4] = createCell(2);
+  state.grid[10][5] = createCell(2);
+  state.grid[10][6] = createCell(2);
+  state.grid[10][7] = createCell(2);
+  state.grid[10][8] = createCell(3);
+  state.grid[10][9] = createCell(3);
+
+  state.cableStress = buildCableStressFromHitDebuffs([{ row: 10, ageMs: 0 }]);
+  const metrics = withMetrics(state);
+  const hitSegment = metrics.cableSegments[10];
+  const adjacentSegment = metrics.cableSegments[9];
+
+  assert.ok(hitSegment.expectedProtection > 0.7);
+  assert.ok(hitSegment.protection < hitSegment.expectedProtection);
+  assert.ok(adjacentSegment.stress > 0);
+});

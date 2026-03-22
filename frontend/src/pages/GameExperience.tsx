@@ -1,12 +1,10 @@
-import { useEffect, useState } from "react";
-
 import { ContactForm } from "../components/ContactForm";
+import { BriefingScreen } from "../components/BriefingScreen";
 import { GameScreen } from "../components/GameScreen";
-import { IntroScreen } from "../components/IntroScreen";
 import { LeaderboardCard } from "../components/LeaderboardCard";
 import { ResultScreen } from "../components/ResultScreen";
-import { StartScreen } from "../components/StartScreen";
-import type { BootstrapResponse, CompletionResult, LeaderboardEntry } from "../types";
+import type { LeaderboardEntry } from "../types";
+import { useGameFlow } from "./useGameFlow";
 
 interface GameExperienceProps {
   initialLeaderboard: LeaderboardEntry[];
@@ -14,45 +12,21 @@ interface GameExperienceProps {
   onLeaderboardRefresh: (items: LeaderboardEntry[]) => void;
 }
 
-type ScreenState = "form" | "start" | "intro" | "game" | "result";
-
 export function GameExperience({
   initialLeaderboard,
   leaderboardError,
   onLeaderboardRefresh,
 }: GameExperienceProps) {
-  const [screen, setScreen] = useState<ScreenState>("form");
-  const [bootstrap, setBootstrap] = useState<BootstrapResponse | null>(null);
-  const [result, setResult] = useState<CompletionResult | null>(null);
-  const [soundEnabled, setSoundEnabled] = useState(true);
-
-  function reset() {
-    setScreen("form");
-    setBootstrap(null);
-    setResult(null);
-  }
-
-  useEffect(() => {
-    document.body.classList.toggle("game-active", screen === "game");
-    if (screen === "game") {
-      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
-    }
-    return () => {
-      document.body.classList.remove("game-active");
-    };
-  }, [screen]);
+  const flow = useGameFlow({ onLeaderboardRefresh });
 
   return (
-    <main className={`app-shell screen-${screen}`}>
+    <main className={`app-shell screen-${flow.screen}`}>
       <div className="app-backdrop" />
-      <div className={`app-content screen-${screen}`}>
-        {screen === "form" ? (
+      <div className={`app-content screen-${flow.screen}`}>
+        {flow.screen === "form" ? (
           <div className="experience-grid">
             <ContactForm
-              onCreated={(response) => {
-                setBootstrap(response);
-                setScreen("start");
-              }}
+              onCreated={flow.handleCreated}
             />
             <div className="stack-column">
               <LeaderboardCard items={initialLeaderboard.slice(0, 6)} />
@@ -61,30 +35,20 @@ export function GameExperience({
           </div>
         ) : null}
 
-        {screen === "start" && bootstrap ? (
-          <StartScreen
-            participant={bootstrap.participant}
-            leaderboard={initialLeaderboard}
-            onStart={() => setScreen("intro")}
-          />
+        {flow.screen === "briefing" && flow.bootstrap ? (
+          <BriefingScreen participant={flow.bootstrap.participant} onStart={() => flow.setScreen("game")} />
         ) : null}
 
-        {screen === "intro" ? <IntroScreen onDone={() => setScreen("game")} /> : null}
-
-        {screen === "game" && bootstrap ? (
+        {flow.screen === "game" && flow.bootstrap ? (
           <GameScreen
-            sessionId={bootstrap.session.id}
-            soundEnabled={soundEnabled}
-            onToggleSound={() => setSoundEnabled((value) => !value)}
-            onCompleted={(completion) => {
-              setResult(completion);
-              setScreen("result");
-              onLeaderboardRefresh(completion.leaderboard);
-            }}
+            sessionId={flow.bootstrap.session.id}
+            soundEnabled={flow.soundEnabled}
+            onToggleSound={flow.toggleSound}
+            onCompleted={flow.handleCompleted}
           />
         ) : null}
 
-        {screen === "result" && result ? <ResultScreen result={result} onReset={reset} /> : null}
+        {flow.screen === "result" && flow.result ? <ResultScreen result={flow.result} onReset={flow.reset} /> : null}
       </div>
     </main>
   );

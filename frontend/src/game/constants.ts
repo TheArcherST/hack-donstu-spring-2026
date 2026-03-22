@@ -1,7 +1,6 @@
-import type { BlockCategory, Point } from "./types";
+import { BOARD_COLS } from "./board.ts";
+import type { BlockCategory, Point } from "./types.ts";
 
-export const BOARD_COLS = 8;
-export const BOARD_ROWS = 16;
 export const CANVAS_WIDTH = 400;
 export const CANVAS_HEIGHT = 760;
 export const FIELD_X = 56;
@@ -10,6 +9,11 @@ export const CELL_SIZE = 36;
 export const CABLE_SPLIT_COL = BOARD_COLS / 2;
 export const MATCH_DURATION_SECONDS = 90;
 export const WIN_PROTECTION_THRESHOLD = 62;
+export const STABLE_LINK_QUALITY_THRESHOLD = 72;
+export const STABLE_PACKET_LOSS_THRESHOLD = 22;
+export const STABLE_LATENCY_THRESHOLD = 92;
+export const FINAL_PACKET_LOSS_WIN_THRESHOLD = 25;
+export const STABILITY_BONUS_SCORE_PER_SECOND = 3;
 
 export const BLOCK_DURABILITY: Record<BlockCategory, number> = {
   normal: 3,
@@ -37,16 +41,6 @@ export const PIECE_SHAPES: Point[][][] = [
     [
       { x: 0, y: 0 },
       { x: 1, y: 0 },
-    ],
-    [
-      { x: 0, y: 0 },
-      { x: 0, y: 1 },
-    ],
-  ],
-  [
-    [
-      { x: 0, y: 0 },
-      { x: 1, y: 0 },
       { x: 2, y: 0 },
     ],
     [
@@ -61,20 +55,6 @@ export const PIECE_SHAPES: Point[][][] = [
       { x: 1, y: 0 },
       { x: 0, y: 1 },
       { x: 1, y: 1 },
-    ],
-  ],
-  [
-    [
-      { x: 0, y: 0 },
-      { x: 1, y: 0 },
-      { x: 2, y: 0 },
-      { x: 3, y: 0 },
-    ],
-    [
-      { x: 0, y: 0 },
-      { x: 0, y: 1 },
-      { x: 0, y: 2 },
-      { x: 0, y: 3 },
     ],
   ],
   [
@@ -90,32 +70,6 @@ export const PIECE_SHAPES: Point[][][] = [
       { x: 0, y: 0 },
       { x: 1, y: 0 },
       { x: 0, y: 1 },
-      { x: 1, y: 1 },
-      { x: 0, y: 2 },
-      { x: 1, y: 2 },
-    ],
-  ],
-  [
-    [
-      { x: 0, y: 0 },
-      { x: 0, y: 1 },
-      { x: 1, y: 1 },
-      { x: 2, y: 1 },
-    ],
-    [
-      { x: 0, y: 0 },
-      { x: 1, y: 0 },
-      { x: 0, y: 1 },
-      { x: 0, y: 2 },
-    ],
-    [
-      { x: 0, y: 0 },
-      { x: 1, y: 0 },
-      { x: 2, y: 0 },
-      { x: 2, y: 1 },
-    ],
-    [
-      { x: 1, y: 0 },
       { x: 1, y: 1 },
       { x: 0, y: 2 },
       { x: 1, y: 2 },

@@ -1,4 +1,3 @@
-import { formatDate } from "../lib/format";
 import type { LeaderboardEntry } from "../types";
 
 interface LeaderboardCardProps {
@@ -6,12 +5,12 @@ interface LeaderboardCardProps {
   title?: string;
 }
 
-export function LeaderboardCard({ items, title = "Рейтинг защиты" }: LeaderboardCardProps) {
+export function LeaderboardCard({ items, title = "Рейтинг packet loss" }: LeaderboardCardProps) {
   return (
     <section className="panel leaderboard-card">
       <div className="panel-header">
         <p className="eyebrow">{title}</p>
-        <h3>Лучшие результаты стенда</h3>
+        <h3>Лучшие результаты по потерям</h3>
       </div>
       <div className="leaderboard-list">
         {items.length === 0 ? (
@@ -22,9 +21,11 @@ export function LeaderboardCard({ items, title = "Рейтинг защиты" }
               <span className="leaderboard-rank">{String(index + 1).padStart(2, "0")}</span>
               <div>
                 <p>{item.full_name}</p>
-                <small>{formatDate(item.completed_at)}</small>
+                <small>
+                  Loss {item.packet_loss}% · {item.delivered_packets} pkt
+                </small>
               </div>
-              <strong>{item.score}</strong>
+              <strong>{item.packet_loss}%</strong>
             </article>
           ))
         )}

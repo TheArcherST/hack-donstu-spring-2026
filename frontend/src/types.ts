@@ -1,3 +1,32 @@
+export type ChannelState = "overloaded" | "partial" | "guarded";
+
+export interface NetworkMetrics {
+  link_quality: number;
+  packet_loss: number;
+  throughput: number;
+  latency_ms: number;
+  delivered_packets: number;
+  dropped_packets: number;
+  delivery_rate: number;
+  channel_state: ChannelState;
+}
+
+export interface StabilityWindow {
+  hold_seconds: number;
+  target_seconds: number;
+}
+
+export interface AttackSummary {
+  system_integrity: number;
+  attack_intensity: number;
+}
+
+export interface SessionResultDetails {
+  network_metrics: NetworkMetrics;
+  stability_window: StabilityWindow;
+  attack_summary: AttackSummary;
+}
+
 export interface ParticipantPayload {
   first_name: string;
   last_name: string;
@@ -29,7 +58,7 @@ export interface GameSession {
   preserved_segments: number;
   failure_reason: string | null;
   prize_issued: boolean;
-  extra_data: Record<string, unknown>;
+  result_details: SessionResultDetails;
   created_at: string;
   completed_at: string | null;
 }
@@ -45,6 +74,8 @@ export interface LeaderboardEntry {
   score: number;
   won: boolean;
   protection_level: number;
+  packet_loss: number;
+  delivered_packets: number;
   completed_at: string | null;
 }
 
@@ -57,7 +88,7 @@ export interface CompletionPayload {
   destroyed_segments: number;
   preserved_segments: number;
   failure_reason?: string | null;
-  extra_data: Record<string, unknown>;
+  result_details: SessionResultDetails;
 }
 
 export interface CompletionResult {
@@ -79,6 +110,7 @@ export interface AdminEntry {
   protection_level: number;
   status: string;
   prize_issued: boolean;
+  result_details: SessionResultDetails;
   created_at: string;
   completed_at: string | null;
 }

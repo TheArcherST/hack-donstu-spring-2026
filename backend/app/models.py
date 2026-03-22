@@ -44,7 +44,7 @@ class GameSession(Base):
     preserved_segments: Mapped[int] = mapped_column(Integer, default=0)
     failure_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
     prize_issued: Mapped[bool] = mapped_column(Boolean, default=False)
-    extra_data: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    result_details: Mapped[dict[str, Any]] = mapped_column("extra_data", JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
     updated_at: Mapped[datetime] = mapped_column(
